@@ -1,0 +1,215 @@
+---
+title: "Assignment_1"
+author: "Emma van Lipzig"
+date: "`r Sys.Date()`"
+output: pdf_document
+theme: sandstone 
+highlight: tango
+
+---
+```{r setup, include=FALSE}
+library(ggplot2)
+library(readr)
+library(gridExtra)
+library(viridis)
+library(reshape2)   
+library(dplyr)
+```
+
+# Exercise 3 - Diet
+To investigate the effect of 3 types of diet, 78 persons were divided randomly in 3 groups, the first group following diet 1, second group diet 2 and the third group diet 3. Next to some other characteristics, the weight was measured before diet and after 6 weeks of diet for each person in the study. The collected data is summarized in the data frame diet.txt Download diet.txt with the following columns: person – participant number, gender – gender (1 = male, 0 = female), age – age (years), height – height (cm), preweight – weight before the diet (kg), diet – the type of diet followed, weight6weeks – weight after 6 weeks of diet (kg). Compute and add to the data frame the variable weight.lost expressing the lost weight, to be used as response variable.
+
+```{r load data}
+data <- read.table(file= 'diet.txt', header=TRUE)
+#View(data)
+```
+
+```{r add data}
+data$weight.lost <- 0
+for (i in 1:78) {
+  data$weight.lost[i] <- data$preweight[i] - data$weight6weeks[i]
+}
+head(data) #shows that weight.lost column has been added
+summary(data) #inspect data
+```
+
+
+## a)
+Make an informative graphical summary of the data relevant for study of the effect of diet on the weight loss. By using only the columns preweight and weight6weeks, test the claim that the diet affects the weight loss. Check the assumptions of the test applied.
+
+The qqplot and histogram of the weigth before diet show that this data does not appear to be normally distributed, as there is one large outlier of 103. The same goes for the weight after six weeks, so after the diet. This again does not seem normally distributed because of the outlier 103. However, the differences between the two, represented as weight.lost, do appear to be distributed normally. This can be seen in both the QQ plot and histogram. 
+```{graphical summaries - normality}
+qq_pre <- ggplot(data) + geom_qq(aes(sample=preweight)) + theme_light() + labs(title="QQ plot Preweight")
+qq_post <- ggplot(data) + geom_qq(aes(sample=weight6weeks))  + theme_light()  + labs(title="QQ plot Weight after six weeks")
+
+hist_pre <- ggplot(data, aes(x=preweight))+ geom_histogram(binwidth=1, color="seagreen", fill="lightgreen", linewidth=.3) + theme_light() + labs(title="Histogram Preweight")
+hist_post <- ggplot(data, aes(x=weight6weeks))+ geom_histogram(binwidth=1, color="seagreen", fill="lightgreen", linewidth=.3) + theme_light() + labs(title="Histogram Weight after six weeks")
+
+grid.arrange(qq_pre, hist_pre, qq_post, hist_post)
+
+max(data$preweight)
+max(data$weight6weeks)
+
+qq_diff <- ggplot(data) + geom_qq(aes(sample=weight.lost)) + theme_light() + labs(title="QQ plot Lost weight") 
+hist_diff <- ggplot(data, aes(x=weight.lost))+ geom_histogram(binwidth=1, color="seagreen", fill="lightgreen", linewidth=.3) + theme_light() + labs(title="Histogram Lost weight")
+
+grid.arrange(qq_diff, hist_diff)
+
+```
+
+The Shapiro-Wilk test does not reject normality (if we take alpha = 0.05), for the preweight data. As this test does not always reject normality for non-normal distributions, this distribution may still be non-normal (as indicated by the histogram and qqplot).
+
+The Shapiro-Wilk test rejects normality (if we take alpha = 0.05), for the weight at six weeks data. When this test rejects normality, the distribution should indeed be non-normal, which corresponds with the qqplot and histogram of the data.
+```{test - normality}
+shapiro.test(data$preweight)
+shapiro.test(data$weight6weeks)
+```
+
+The boxplots below shows that there may be a difference in the weight before and after dieting. The first boxplot shows the distribution of weight data before and after a diet, the second boxplot shows the distribution of the difference between these weights, which is the distribution of the weight loss. 
+```{graphical summaries - data against each other}
+data_subset <- select(data,preweight, weight6weeks)
+data_long <- melt(data_subset)
+
+weight_boxplt <- ggplot(data_long, aes(x = variable, y = value)) +         
+  geom_boxplot(color="seagreen", fill="lightgreen") + labs(title = 'Weights before and after diet', x = 'diet stage', y = 'weight')+ theme_light()
+
+diet_boxplt <- ggplot(data, aes( y=weight.lost)) + geom_boxplot(color="seagreen", fill="lightgreen") + labs(title='Weight lost') + theme_light()
+
+grid.arrange(weight_boxplt, diet_boxplt,  ncol = 2)
+
+```
+
+
+Because the differences between the pre and post diet weight data is distributed normally, a t-test can be used to determine whether these two groups differ statistically significantly from each other. Because the data is the pre and post weight from the same subjects, in this situation a paired t-test is applicable. H0 is that the groups are not different.
+```{r t test}
+t.test(data$preweight, data$weight6weeks, data = data, paired = TRUE)
+```
+The p value of the t-test is < 0.05, therefore H0 is rejected. This means that the means of preweight and weight6weeks statistically differ. As the weightloss over the six weeks of dieting was significant, it could be that diet has an influence on weightloss. However, this does not take into account other factors included in the experiment like gender and age.
+
+## b)
+Apply one-way ANOVA to test whether type of diet has an effect on the lost weight. Do all three types diets lead to weight loss? Which diet was the best for losing weight? Can the Kruskal-Wallis test be applied for this situation?
+
+The boxplots below show that that different diets may have different effects on weightloss.  
+```{graphical summaries - ANOVA}
+diet_g_boxplt <- ggplot(data, aes( y=weight.lost, group = diet)) + geom_boxplot(color="seagreen", fill="lightgreen") + labs(title='Weight lost per diet') + theme_light()
+diet_g_boxplt
+```
+
+The summary below shows that the study is not a balanced design. Diet 1 has less participants than diet 2 and 3. 
+
+The ANOVA with treatment parametrization and diet 1 as base level shows that the other diets differ significantly from diet 1. This means that some diets are more effective for weightloss than others. If the study had a 'no diet' treatment, this would have been a good base level to use, however, this is not the case. As it is not clear which of the diets should be the base level, it is better to use sum parametrization. A summary of the treatment parametrization model shows that diet 3 is better for weightloss than diet 1. A summary of the model with sum parametrization shows that diet 2 differs significantly from the global diet mean. Although all diets can be used for weightloss, diet 2 and 3 are better than diet 1. A t-test shows that diet 2 and 3 are significantly different, which implies that diet 3 is best for losing weight. 
+```{r ANOVA}
+data$diet <- as.factor(data$diet) # diet is numerical but needs to be factor for ANOVA
+is.factor(data$diet) # True
+summary(data$diet) #design is not balanced
+
+# treatment parametrization, diet1 is base level
+dietaov <- lm(weight.lost ~ diet, data=data)
+anova(dietaov)
+summary(dietaov)
+
+# sum parametrization
+contrasts(data$diet)=contr.sum
+dietaov2 <- lm(weight.lost ~ diet, data=data)
+anova(dietaov2)
+summary(dietaov2)
+
+# t-test
+data_diet2 <- data[data$diet == 2,]
+data_diet3 <- data[data$diet == 3,]
+names(data_diet3)[8]<- paste("weight.lost2")
+data_diet23 <- cbind(data_diet2,data_diet3)
+t.test(data_diet23$weight.lost, data_diet23$weight.lost2, data = data_diet23, paired = FALSE)
+```
+
+Below the model assumptions for the two ANOVA's are tested. The qqplots show that the residuals for both models seem normally distributed, and neither plot of the fitted against actual residuals shows particular patterns. Therefore the model assumptions are met for both ANOVA's. Because these assumptions are met, a non-parametric test like Kruskall-Wallis would be weaker to use. This is based on ranks, which means a lot of information is thrown out when using Kruskal-Wallis. It is still possible to use this test, but in this case it would not provide better insights than ANOVA. 
+```{r ANOVA normality}
+qq_aovres1 <- ggplot(data) + geom_qq(aes(sample=residuals(dietaov)))  + theme_light()  + labs(title="QQ residuals of lm weight.lost ~ diet")
+scatter_aovres1 <- ggplot(dietaov, aes(fitted(dietaov), residuals(dietaov))) + geom_point() + theme_light() + labs(title="Fitted against actual residuals of lm weight.lost ~ diet")
+
+grid.arrange(qq_aovres1, scatter_aovres1, ncol=2)
+
+qq_aov2res2 <- ggplot(data) + geom_qq(aes(sample=residuals(dietaov2)))  + theme_light()  + labs(title="QQ residuals of lm weight.lost ~ diet")
+scatter_aov2res2 <- ggplot(dietaov2, aes(fitted(dietaov2), residuals(dietaov2))) + geom_point() + theme_light() + labs(title="Fitted against actual residuals of lm weight.lost ~ diet")
+
+grid.arrange(qq_aov2res2, scatter_aov2res2, ncol=2)
+```
+
+
+## c)
+Use two-way ANOVA to investigate effect of the diet and gender (and possible interaction) on the lost weight.
+
+The two-way ANOVAs below show a main effect of diet on weight loss, no main effect of gender on weight loss and an interaction effect between gender and diet on weight loss. The factor diet is sum parametrized because there is no clear reason to pick one of the diets as a base level. 
+```{r two way ANOVA gender}
+data$gender <- as.factor(data$gender)
+is.factor(data$gender) # TRUE
+
+genderaovm <- lm(weight.lost ~ diet + gender, data = data) # main effects
+anova(genderaovm)
+
+genderaovi <- lm(weight.lost ~ diet * gender, data = data) # interaction effects
+anova(genderaovi)
+```
+
+
+The interaction plots show that indeed diet matters a lot. The specifically for diet 2 and 3 the difference between the genders is very pronounced. It looks like gender matters less as the lines for diet 1 and 2 look somewhat similar, but the line for diet 3 is very different.
+```{r interaction plots gender}
+par(mfrow=c(1,2))
+interaction.plot(data$gender, data$diet, data$weight.lost)
+interaction.plot(data$diet, data$gender, data$weight.lost)
+```
+
+Both the fitted against actual residual plot and qq residual plot indicate that the additive model does not violate the assumption of normality. However, the spread of the residuals looks different in the last column from the other columns for the interaction model. The QQ residual plot also does not look completely normal. Therefore it is doubtful that the assumption of normality is met for the interaction model. 
+```{r two way anova gender normality }
+par(mfrow=c(1,2))
+qqnorm(residuals(genderaovm))
+scatter_genderaovm <- ggplot(genderaovm, aes(fitted(genderaovm), residuals(genderaovm))) + geom_point() + theme_light() + labs(title="Fitted against actual residuals of lm weight.lost ~ diet + gender")
+
+qqnorm(residuals(genderaovi))
+scatter_genderaovi <- ggplot(genderaovi, aes(fitted(genderaovi), residuals(genderaovi))) + geom_point() + theme_light() + labs(title="Fitted against actual residuals of lm weight.lost ~ diet * gender")
+
+grid.arrange(scatter_genderaovm, scatter_genderaovi, ncol=2)
+
+```
+
+## d)  
+Apply an appropriate model to investigate effects of diet and height (and possibly their interaction) on the lost weight. Is the effect of height the same for all 3 types of diet?
+
+
+The two-way ANOVAs below show a main effect of diet on weight loss, no main effect of height on weight loss and no interaction effect between height and diet on weight loss. The factor diet is sum parametrized because there is no clear reason to pick one of the diets as a base level. 
+```{r two way ANOVA height}
+data$height <- as.factor(data$height)
+is.factor(data$height) # TRUE
+
+heightaovm <- lm(weight.lost ~ diet + height, data = data) # main effects
+anova(heightaovm)
+
+heightaovi <- lm(weight.lost ~ diet * height, data = data) # interaction effects
+anova(heightaovi)
+```
+
+
+The interaction plots show that lines where diet is fixed vary a lot. No interaction effect and no main effect of height was found, so this variebility is probably because of noise. Some lines where height is fixed behave similarly, but there are also lines which look very different, mostly for diet 2 and 3 they are very spread. 
+```{r interaction plots height}
+par(mfrow=c(1,2))
+interaction.plot(data$height, data$diet, data$weight.lost)
+interaction.plot(data$diet, data$height, data$weight.lost)
+```
+
+QQ residual plots of the main effect and the interaction models show that both models violate the assumption of normality, which can also be seen om tje fitted against actual residual plots, where there are systematic spread differences.  
+```{r two way anova height normality }
+par(mfrow=c(1,2))
+qqnorm(residuals(heightaovm))
+scatter_heightaovm <- ggplot(heightaovm, aes(fitted(heightaovm), residuals(heightaovm))) + geom_point() + theme_light() + labs(title="Fitted against actual residuals of lm weight.lost ~ diet + height")
+
+qqnorm(residuals(heightaovi))
+scatter_heightaovi <- ggplot(heightaovi, aes(fitted(heightaovi), residuals(heightaovi))) + geom_point() + theme_light() + labs(title="Fitted against actual residuals of lm weight.lost ~ diet * height")
+
+grid.arrange(scatter_heightaovm, scatter_heightaovi, ncol=2)
+
+```
+
+###Is the effect of height the same for all 3 types of diet?
+
+# e)
+Which of the two approaches, the one from b) or the one from d), do you prefer? Why? For the preferred model, predict the lost weight for all three types of diet for an average person.
