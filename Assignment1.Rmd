@@ -1,0 +1,149 @@
+---
+title: "Assignment1"
+output:
+  pdf_document:
+    latex_engine: xelatex
+date: "`r Sys.Date()`"
+header-includes:
+  - \usepackage[utf8]{inputenc}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(digits=3)
+```
+
+## Excercise 1
+
+## Excercise 2. Cholesterol
+**a)**
+First the dataset is imported:
+```{r import}
+data=read.table(file="cholesterol.txt",header=TRUE)
+Before = data$Before
+After8weeks = data$After8weeks
+```
+We summarise the data by giving a summary and by making a histogram, a boxplot and a QQ-plot of every column.
+```{r fig.height=3, fig.width=6}
+summary(Before)
+
+par(mfrow=c(1,3))
+hist(Before,xlab='cholesterol')
+boxplot(Before)
+qqnorm(Before)
+
+summary(After8weeks)
+hist(After8weeks, xlab='cholesterol')
+boxplot(After8weeks)
+qqnorm(After8weeks)
+
+par(mfrow=c(1,1))
+```
+Both histograms look normally distributed, the boxplots are symmetrical with the mean in the center of the box and the QQ-plots are linear. In conclusion, the plots give no reason to suspect that the data is drawn from a non-normal distribution. 
+
+To investigate if the columns are correlated we calculate the correlation according to the literature. To visualize the correlation a plot is created with before on the x-axis and after8weeks on the y-axis.
+
+```{r, fig.height=4, fig.width=4}
+cor(Before,After8weeks)
+plot(Before,After8weeks)
+```
+
+The columns are strongly correlated.
+
+**b)**
+Since the study measured two sets of observations obtained from the same individuals the data is paired. In this case, each individual's before and after cholesterol levels are paired observations. Two relevant statistical tests for paired samples are: paired t-test and Wilcoxon signed-rank test.
+
+A paired t-test is performed when the data is normally distributed. Looking back to *a)* we can see that the data is indeed normally distributed. 
+```{r}
+t.test(After8weeks, Before, paired = TRUE)
+```
+
+The Wilcoxon signed-rank test does not assume that the data is normally distributed and is therefore a useful alternative to the paired t-test when this assumption is violated.
+
+```{r}
+wilcox.test(After8weeks, Before, paired = TRUE)
+```
+
+Since the data is paired, we can apply a permutation test to determine whether the diet with low fat margarine has an effect. Also, the permutation test does not assume any distribution for the data. The R code to perform this test is as follows:
+```{r}
+mystat=function(x,y) {mean(x-y)}
+B=1000; tstar=numeric(B)
+for (i in 1:B) {
+  dietstar=t(apply(cbind(After8weeks,Before),1,sample))
+  tstar[i]=mystat(dietstar[,1],dietstar[,2]) }
+myt=mystat(After8weeks,Before)
+
+myt
+hist(tstar, xlim=c(-0.7,0.7))
+lines(rep(myt,2),c(0,20), col="red",lwd=2)
+pl=sum(tstar<myt)/B
+pr=sum(tstar>myt)/B
+p=2*min(pl,pr); p
+```
+
+**c)**
+The mean of a uniform sample is given by E[X̄] = (1/n) * ΣXi = (1/18) * ΣXi.The variation of a uniform sample is also given, Var(Xi) = ((θ - 3)^2)/12. So the variance of the sample mean is given by Var(X̄) = Var((1/18) * ΣXi) = (1/18^2) * ΣVar(Xi) = ((θ - 3)^2)/(12 * 18 * 18). According to the central limit theorem, as n goes to infinity, the distribution of X̄ approaches a normal distribution with mean E[X̄] and variance Var(X̄).
+```{r}
+x.bar <- mean(After8weeks)
+theta.hat <- 2 * x.bar - 3
+```
+A 95% confidence interval for θ is found using the central limit theorem by calculating the margin of error and adding and subtracting it to the estimate of θ.
+```{r}
+z <- qnorm(0.975) 
+sigma <- sqrt(((theta.hat - 3)^2)/(12*18*18))
+me <- z * sigma
+
+ci <- c(theta.hat - me, theta.hat + me)
+ci
+```
+
+**Can you improve this CI?**
+
+**d)**
+```{r}
+hist(After8weeks, freq = FALSE, xlim = c(3, 12))
+curve(dunif(x, min = 3, max = 12), add = TRUE, col="blue", lwd = 2)
+```
+The After8weeks column does not appear to be uniformly distributed. Since there are no values bigger than 8 in the data it is expected that values of θ>8 will reject the null hypothesis. To investigate if After8weeks is drawn from an uniform distribution in [3,θ] a bootstrap test is performed. Surrogate T-values are generated that are representative of values of T under H0. The test statistic (in this case the maximum) is computed. This process is repeated 1000 times. Finally, the T-value is compared to the surrogate T*-values to determine a p-value. 
+
+
+```{r}
+H0=rep(1, 9)
+for(theta in 4:12){
+  n=length(After8weeks); t=max(After8weeks)
+  B=1000; Tstar=numeric(B)
+  for(i in 1:B) {
+   Xstar=runif(n,3,theta)
+   Tstar[i]=max(Xstar)}
+  pl=sum(Tstar<t)/B;pr=sum(Tstar>t)/B
+  p=2*min(pl,pr)
+  if(p<0.05){H0[theta-3]=0}}
+H0
+```
+
+The H0 is rejected for all values of θ except 8. This result was to be expected as the data ranges from 3 to 8 as can be seen in the histogram.
+
+The Kolmogorov-Smirnov is used to test if two samples are from the same distribution. So it is perfectly suited to use in this situation.
+```{r}
+H0=rep(1,9)
+for(theta in 4:12){
+  n=length(After8weeks)
+  sample=runif(n,3,theta)
+  p=ks.test(After8weeks,sample)$p.value
+  if(p<0.05){H0[theta-3]=0}
+}
+H0
+```
+The null hypothesis is rejected in cases where θ<8.
+
+**e)**
+To test whether the median cholesterol level after 8 weeks of low fat diet is less than 6 a Wilcoxon signed-rank test is performed.
+```{r}
+wilcox.test(After8weeks,mu=6,alt="l")
+```
+
+
+
+
+
+
