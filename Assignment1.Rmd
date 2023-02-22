@@ -18,20 +18,20 @@ library(reshape2)
 library(dplyr)
 ```
 
-## Excercise 1. Birthweight
+# Excercise 1. Birthweight
 
-## Excercise 2. Cholesterol
-**a)**
-```{r, echo=FALSE}
+# Excercise 2. Cholesterol
+## a)
+```{r load data 2, echo=FALSE}
 data=read.table(file="cholesterol.txt",header=TRUE)
 Before = data$Before
 After8weeks = data$After8weeks
 ```
 We summarise the data by giving a summary and by making a histogram, a boxplot and a QQ-plot of both columns.
 
-**Before Diet**
+### Before Diet
 
-```{r, fig.height=2, fig.width=6, echo=FALSE}
+```{r summarise Before, fig.height=2, fig.width=6, echo=FALSE}
 par(mfrow=c(1,3))
 
 summary(Before)
@@ -42,9 +42,9 @@ qqnorm(Before)
 ```
 
 
-**After 8 weeks of diet**
+### After 8 weeks of diet
 
-```{r, fig.height=2, fig.width=6, echo=FALSE}
+```{r summarise After8weeks, fig.height=2, fig.width=6, echo=FALSE}
 par(mfrow=c(1,3))
 
 summary(After8weeks)
@@ -59,7 +59,7 @@ Both histograms look normally distributed, the boxplots are symmetrical with the
 
 To investigate if the columns are correlated we calculate the correlation according to the literature. To visualize the correlation a plot is created with before on the x-axis and after8weeks on the y-axis.
 
-```{r, echo=TRUE}
+```{r correlation, echo=TRUE}
 cor(Before,After8weeks)
 ```
 ```{r, fig.height=3, fig.width=3, echo=FALSE}
@@ -68,25 +68,25 @@ plot(Before,After8weeks)
 
 The columns are strongly correlated.
 
-**b)**
+## b)
 Since the study measured two sets of observations obtained from the same individuals the data is paired. In this case, each individual's before and after cholesterol levels are paired observations. Two relevant statistical tests for paired samples are: paired t-test and Wilcoxon signed-rank test.
 
 A *paired t-test* is performed when the data is normally distributed. Looking back to *a)* we can see that the data is indeed normally distributed. 
-```{r, echo=TRUE}
+```{r t-test, echo=TRUE}
 p=t.test(After8weeks, Before, paired = TRUE)[[3]]; p
 ```
 The p-value is lower than 0.05, which means H0 can be rejected meaning that there is indeed a true difference in means between the two variables.
 
 The *Wilcoxon signed-rank test* does not assume that the data is normally distributed and is therefore a useful alternative to the paired t-test when this assumption is violated.
 
-```{r, echo=TRUE}
+```{r wilcoxon signed rank test, echo=TRUE}
 p=wilcox.test(After8weeks, Before, paired = TRUE)[[3]]; p
 ```
 
 The p-value is lower than 0.05, so H0 is rejected meaning that the true location of the population is different between columns.
 
 Since the data is paired, we can apply a permutation test to determine whether the diet has an effect. Also, the permutation test does not assume any distribution for the data. The R code to perform this test is as follows:
-```{r, echo=TRUE}
+```{r permutation test, echo=TRUE}
 mystat=function(x,y) {mean(x-y)}
 B=1000; tstar=numeric(B)
 for (i in 1:B) {
@@ -98,28 +98,28 @@ myt
 ```
 In the histogram below the distribution of t* is depicted. The distribution is normal, due to CLT. The actual value of the T statistic is depicted in red. 
 
-```{r, fig.height=4, fig.width=7, echo=FALSE}
+```{r tstar histogram, fig.height=3, fig.width=7, echo=FALSE}
 hist(tstar, xlim=c(-0.7,0.7))
 lines(rep(myt,2),c(0,20), col="red",lwd=2)
 ```
-```{r, echo=TRUE}
+```{r calculate p-value, echo=TRUE}
 pl=sum(tstar<myt)/B
 pr=sum(tstar>myt)/B
 p=2*min(pl,pr); p
 ```
 The value of p is equal to zero, which means H0 can be rejected. This means that there is a significant difference between before and after the diet.
 
-**c)**
+## c)
 
-The mean of a uniform sample is given by $E[\bar{X}] = (1/n) * \sum{Xi} = 1/18 * \sum{Xi}$.The variation of a uniform sample is also given, $Var(Xi) = ((\theta - 3)^2)/12$. So the variance of the sample mean is given by $Var(\bar{X}) = Var((1/18) * \sum{Xi}) = (1/18^2) * \sum Var(Xi) = ((\theta - 3)^2)/(12 * 18 * 18)$. According to the central limit theorem, as n goes to infinity, the distribution of $\bar{X}$ approaches a normal distribution with mean $E[\bar{X}]$ and variance $Var(\bar{X})$.
-```{r, echo=TRUE}
+The mean of a uniform sample is given by $E[\bar{X}] = (1/n) * \sum{Xi} = 1/18 * \sum{Xi}$.The variation of a uniform sample is also given, $Var(Xi) = ((\theta - 3)^2)/12$. So the variance of the sample mean is given by $Var(\bar{X}) = Var((1/18) * \sum{Xi}) = (1/18^2) * \sum Var(Xi) = ((\theta - 3)^2)/(12 * 18 * 18)$. According to the central limit theorem, as n goes to infinity, the distribution of $\bar{X}$ approaches a normal distribution with mean $E[\bar{X}]$ and variance $Var(\bar{X})$. The mean of a uniform distribution is in the center, so to estimate the maximum of a uniform distribution ($\bar{\theta}$) one can simply multiply the mean by 2 and subtract the start of the interval.  
+```{r estimate theta, echo=TRUE}
 x.bar = mean(After8weeks)
 theta.hat = 2 * x.bar - 3
 ```
-A 95% confidence interval for $\theta$ is found using the central limit theorem by calculating the margin of error and adding and subtracting it to the estimate of $\theta$.
-```{r, echo=TRUE}
+A 95% confidence interval for $\theta$ is found using the central limit theorem by calculating the margin of error and adding and subtracting it to $\bar{\theta}$.
+```{r calculate CI, echo=TRUE}
 z = qnorm(0.975) 
-sigma = sqrt(((theta.hat - 3)^2)/(12*18*18))
+sigma = sqrt(((theta.hat - 3)^2)/(12*18))
 me = z * sigma
 
 ci = c(theta.hat - me, theta.hat + me)
@@ -128,9 +128,9 @@ ci
 
 **Can you improve this CI?**
 
-**d)**
+## d)
 
-```{r, echo=FALSE}
+```{r histogram After8weeks, echo=FALSE}
 hist(After8weeks, freq = FALSE, xlim = c(3, 12))
 curve(dunif(x, min = 3, max = 12), add = TRUE, col="blue", lwd = 2)
 ```
@@ -138,7 +138,7 @@ curve(dunif(x, min = 3, max = 12), add = TRUE, col="blue", lwd = 2)
 The After8weeks column does not appear to be uniformly distributed. Since there are no values bigger than 8 in the data it is expected that values of $\theta>8$ will reject the null hypothesis. To investigate if After8weeks is drawn from an uniform distribution in [3,$\theta$] a bootstrap test is performed. Surrogate T-values are generated that are representative of values of T under H0. The test statistic (in this case the maximum) is computed. This process is repeated 1000 times. Finally, the T-value is compared to the surrogate T*-values to determine a p-value. 
 
 
-```{r, echo=TRUE}
+```{r bootstrap test, echo=TRUE}
 H0=rep(1, 9)
 for(theta in 4:12){
   n=length(After8weeks); t=max(After8weeks)
@@ -156,7 +156,7 @@ The H0 is rejected for all values of $\theta$ except 8. This result was to be ex
 
 The *Kolmogorov-Smirnov* is used to test if two samples are from the same distribution. The actual data can be compared to data generated from a uniform distribution. So it is perfectly suited to use in this situation.
 
-```{r, echo=TRUE}
+```{r KS-test, echo=TRUE}
 H0=rep(1,9)
 for(theta in 4:12){
   n=length(After8weeks)
@@ -168,28 +168,28 @@ H0
 ```
 The null hypothesis is rejected in cases where $\theta$<8.
 
-**e)**
+## e)
 To test whether the median cholesterol level after 8 weeks of low fat diet is less than 6 a *Wilcoxon signed-rank test* is performed.
-```{r, warning=FALSE}
+```{r wilcoxon signed-rank test, warning=FALSE}
 p=wilcox.test(After8weeks,mu=6,alt="l")[[3]]; p
 ```
 The p-value is bigger than 0.05 so the null hypothesis can not be rejected. This means that it is not statistically significant that the population median is lower than 6.
 
-```{r}
+```{r calculate proportion, echo=TRUE}
 n=sum(After8weeks<4.5)
 prop=n/length(After8weeks);prop
 ```
 The proportion of the values lower than 4.5 is less than 25%
 
-## Excercise 3. Diet
+# Excercise 3. Diet
 To investigate the effect of 3 types of diet, 78 persons were divided randomly in 3 groups, the first group following diet 1, second group diet 2 and the third group diet 3. Next to some other characteristics, the weight was measured before diet and after 6 weeks of diet for each person in the study. The collected data is summarized in the data frame diet.txt Download diet.txt with the following columns: person – participant number, gender – gender (1 = male, 0 = female), age – age (years), height – height (cm), preweight – weight before the diet (kg), diet – the type of diet followed, weight6weeks – weight after 6 weeks of diet (kg). Compute and add to the data frame the variable weight.lost expressing the lost weight, to be used as response variable.
 
-```{r load data}
+```{r load data 3}
 data <- read.table(file= 'diet.txt', header=TRUE)
 #View(data)
 ```
 
-```{r add data}
+```{r add data 3}
 data$weight.lost <- 0
 for (i in 1:78) {
   data$weight.lost[i] <- data$preweight[i] - data$weight6weeks[i]
