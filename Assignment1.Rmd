@@ -16,86 +16,93 @@ library(gridExtra)
 library(viridis)
 library(reshape2)   
 library(dplyr)
+library(boot)
+library(pwr)
 ```
 
 # Excercise 1. Birthweight
 
-# Intro
-
+## Intro
+```{r intro 1}
 mydata <- read.table("birthweight.txt", header = TRUE, sep = "\n")
 mu <- mean(mydata$birthweight)
 sigma = sd(mydata$birthweight)
 sigma
-# mu = 2913.293 g, sigma = 697.5002
-
-# Exercise 1: a
-
-shapiro.test(mydata$birthweight)
-# W = 0.99595, pvalue = 0.8995, which means the Shapiro-Wilk test supports normality
+```
+## a)
+```{r shapiro-wilk}
+p=shapiro.test(mydata$birthweight)[[3]]; p
+```
+$p>0.05$, which means the Shapiro-Wilk test supports normality
+```{r normality plots 1, fig.height=4,fig.width=8}
+par(mfrow=c(2,1))
 qqnorm(mydata$birthweight)
 hist(mydata$birthweight)
-# Both the Shapiro-Wilk test and the plots support normality
+```
+Both the Shapiro-Wilk test and the plots support normality
 
+```{r 96% CI}
 n <- length(mydata$birthweight)
 alpha <- 0.04
 t_value <- qt(1-alpha/2, df=n-1)
 t_value
 lower_bound <- mu - t_value*sigma/sqrt(n)
 upper_bound <- mu + t_value*sigma/sqrt(n)
-# The 96% confidence interval lies between 2808.084 g and 3018.501 g.
+```
+The 96% confidence interval lies between 2808.084 g and 3018.501 g.
 
-library(boot)
+**TODO: Evaluate the sample size needed to provide that the length of the 96%-CI is at most 100. (Formule uit college 0/1 slide 49)**
+
+```{r}
 boot_fn <- function(data, index) mean(data[index])
 boot_data <- boot(mydata$birthweight, boot_fn, R=1000)
 quantile(boot_data$t, c(0.02, 0.98))
+```
+The 96% confidence interval using bootstrap lies between 2807.927 and 3018.938
+These two confidence intervals are very similar. Normally a bootstrapped CI is constructed because of non-normality or outliers, but this data is distributed normally, so the bootstrap yields the same results as the regular method.
 
-# The 96% confidence interval using bootstrap lies between 2807.927 and 3018.938
-# These two confidence intervals are very similar. Normally a bootstrapped CI is constructed
-# because of non-normality or outliers, but this data is distributed normally, so the
-# bootstrap yields the same results as the regular method.
-
-# Exercise 1: b
-
+## b)
+```{r}
 t.test(mydata$birthweight, mu = 2800, alternative = 'greater')
-
-# This t-test supports the expert's claim that the mean birthweight is higher than 2800 g,
-# since the CI is entirely above this value. 
-
+```
+This t-test supports the expert's claim that the mean birthweight is higher than 2800 g, since the CI is entirely above this value. 
+```{r}
 num_above <- sum(mydata$birthweight > 2800)
 num_below <- sum(mydata$birthweight < 2800)
-
-# Perform the sign test
+```
+Perform the sign test
+```{r}
 binom.test(num_above, num_above + num_below, p = 0.5, alternative = "greater")
+```
+The sign test too indicates that the expert's claim was right, since p < 0.05.
 
-# The sign test too indicates that the expert's claim was right, since p < 0.05.
-
-# Exercise 1: c
-
-library(pwr)
+## c)
+```{r}
 sig.level <- 0.05 
 effect.size <- (2913.293 - 2800) / sigma 
 power_t <- pwr.t.test(n = n, d = effect.size, sig.level = sig.level, type = "one.sample", alternative = "greater")$power
 birthweight <- c(2786, 2977, 3076, 3277, 2826, 3106, 3016, 3131, 2846, 3011)
-#------------------------------------------------------------------------------
-# TODO: Write down the power
-# -----------------------------------------------------------------------------
+```
+------------------------------------------------------------------------------
+TODO: Write down the power
+-----------------------------------------------------------------------------
 
-# Exercise 1: d
+## d)
+The $1-\alpha$-confidence interval for p is $\hat{p} \pm z_{\alpha/2}\sqrt{\frac{\hat{p}(1-\hat{p})}{n}}$ based on CLT. Since we do not know the true value of p, we can resolve the equation $\hat{p_l} = \hat{p}-z_{\alpha/2}\sqrt{\frac{\hat{p}(1-\hat{p})}{n}}$ and find a value for $\hat{p}$. 
+```{r}
+n=length(mydata$birthweight)
 
-proportion_under2600 <- sum(mydata$birthweight < 2600)/n
-# So now we know the proportion of babies born under 2600 gram. If we take the distance from
-# this mean to 0.25 and apply that same distance in the positive direction we get the 
-# complete confidence interval.
-distance <- proportion_under2600 - 0.25
-CI <- c(0.25, proportion_under2600 + distance)
-# The true proportion of babies born under 2600 grams lies between 25% and 40.9% of the population
+f <- function(x) x - qnorm(0.975)*sqrt((x*(1-x))/n) -0.25
+p.hat <- uniroot(f, c(0.25, 1))$root
 
-#-------------------------------------------------------------
-# Question: How to calculate confidence level?
-# ------------------------------------------------------------
+me=qnorm(0.9975)*sqrt((p.hat*(1-p.hat))/n)
+p.hat_right=p.hat+me
+p.hat_right
+```
+So, the confidence interval is [0.25,0.412] and the confidence level is 95%, since the $1-\alpha$-confidence interval was constructed and $\alpha$ is 5%.
 
-# Exercise 1: e
-
+## e)
+```{r}
 # pmu2600 <- 34/62
 # pfu2600 <- 28/62
 # pma2600 <- 61/126
@@ -121,10 +128,10 @@ CI <- c(0.25, proportion_under2600 + distance)
 
 prop.test(c(34,28),c(95, 93))
 prop.test(c(61,65),c(95,90))
-
-# These proportianality tests suggest that there is no significant difference between 
-# the sample proportions of the two groups, which mean that there is no significant difference
-# between the mean male birthweight and mean female birthweight.
+```
+These proportianality tests suggest that there is no significant difference between 
+the sample proportions of the two groups, which mean that there is no significant difference
+between the mean male birthweight and mean female birthweight.
 
 
 
@@ -229,12 +236,14 @@ theta.hat = 2 * x.bar - 3
 A 95% confidence interval for $\theta$ is found using the central limit theorem by calculating the margin of error and adding and subtracting it to $\bar{\theta}$.
 ```{r calculate CI, echo=TRUE}
 z = qnorm(0.975) 
-sigma = sqrt(((theta.hat - 3)^2)/(12*18))
+sigma = sqrt(((theta.hat - 3)^2)/(12*18*18))
 me = z * sigma
 
 ci = c(theta.hat - me, theta.hat + me)
 ci
 ```
+
+This confidence interval means that for values of $8.38<\theta<8.73$ the data is not significantly different than if the data for the cholesterol after eight weeks of diet was drawn from $Unif[3,\theta]$.
 
 **Can you improve this CI?**
 
@@ -313,7 +322,7 @@ summary(data) #inspect data
 Make an informative graphical summary of the data relevant for study of the effect of diet on the weight loss. By using only the columns preweight and weight6weeks, test the claim that the diet affects the weight loss. Check the assumptions of the test applied.
 
 The qqplot and histogram of the weigth before diet show that this data does not appear to be normally distributed, as there is one large outlier of 103. The same goes for the weight after six weeks, so after the diet. This again does not seem normally distributed because of the outlier 103. However, the differences between the two, represented as weight.lost, do appear to be distributed normally. This can be seen in both the QQ plot and histogram. 
-```{graphical summaries - normality}
+```{r graphical summaries - normality}
 qq_pre <- ggplot(data) + geom_qq(aes(sample=preweight)) + theme_light() + labs(title="QQ plot Preweight")
 qq_post <- ggplot(data) + geom_qq(aes(sample=weight6weeks))  + theme_light()  + labs(title="QQ plot Weight after six weeks")
 
@@ -335,13 +344,13 @@ grid.arrange(qq_diff, hist_diff)
 The Shapiro-Wilk test does not reject normality (if we take alpha = 0.05), for the preweight data. As this test does not always reject normality for non-normal distributions, this distribution may still be non-normal (as indicated by the histogram and qqplot).
 
 The Shapiro-Wilk test rejects normality (if we take alpha = 0.05), for the weight at six weeks data. When this test rejects normality, the distribution should indeed be non-normal, which corresponds with the qqplot and histogram of the data.
-```{test - normality}
+```{r test - normality}
 shapiro.test(data$preweight)
 shapiro.test(data$weight6weeks)
 ```
 
 The boxplots below shows that there may be a difference in the weight before and after dieting. The first boxplot shows the distribution of weight data before and after a diet, the second boxplot shows the distribution of the difference between these weights, which is the distribution of the weight loss. 
-```{graphical summaries - data against each other}
+```{r graphical summaries - data against each other}
 data_subset <- select(data,preweight, weight6weeks)
 data_long <- melt(data_subset)
 
@@ -365,7 +374,7 @@ The p value of the t-test is < 0.05, therefore H0 is rejected. This means that t
 Apply one-way ANOVA to test whether type of diet has an effect on the lost weight. Do all three types diets lead to weight loss? Which diet was the best for losing weight? Can the Kruskal-Wallis test be applied for this situation?
 
 The boxplots below show that that different diets may have different effects on weightloss.  
-```{graphical summaries - ANOVA}
+```{r graphical summaries - ANOVA}
 diet_g_boxplt <- ggplot(data, aes( y=weight.lost, group = diet)) + geom_boxplot(color="seagreen", fill="lightgreen") + labs(title='Weight lost per diet') + theme_light()
 diet_g_boxplt
 ```
