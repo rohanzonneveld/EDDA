@@ -23,22 +23,24 @@ library(pwr)
 # Excercise 1. Birthweight
 
 ## Intro
-```{r intro 1}
+```{r intro 1, echo=FALSE}
 mydata <- read.table("birthweight.txt", header = TRUE, sep = "\n")
 mu <- mean(mydata$birthweight)
 sigma = sd(mydata$birthweight)
-sigma
+
 ```
 ## a)
 ```{r shapiro-wilk}
-p=shapiro.test(mydata$birthweight)[[3]]; p
+p=shapiro.test(mydata$birthweight)[[2]]; p
 ```
 $p>0.05$, which means the Shapiro-Wilk test supports normality
-```{r normality plots 1, fig.height=4,fig.width=8}
-par(mfrow=c(2,1))
+
+```{r normality plots 1, fig.height=4, fig.width=8, echo=FALSE}
+par(mfrow=c(1,2))
+hist(mydata$birthweight, main='histogram of birthweight')
 qqnorm(mydata$birthweight)
-hist(mydata$birthweight)
 ```
+
 Both the Shapiro-Wilk test and the plots support normality
 
 ```{r 96% CI}
@@ -83,16 +85,12 @@ effect.size <- (2913.293 - 2800) / sigma
 power_t <- pwr.t.test(n = n, d = effect.size, sig.level = sig.level, type = "one.sample", alternative = "greater")$power
 birthweight <- c(2786, 2977, 3076, 3277, 2826, 3106, 3016, 3131, 2846, 3011)
 ```
-------------------------------------------------------------------------------
-TODO: Write down the power
------------------------------------------------------------------------------
+**TODO: Write down the power**
 
 ## d)
 The $1-\alpha$-confidence interval for p is $\hat{p} \pm z_{\alpha/2}\sqrt{\frac{\hat{p}(1-\hat{p})}{n}}$ based on CLT. Since we do not know the true value of p, we can resolve the equation $\hat{p_l} = \hat{p}-z_{\alpha/2}\sqrt{\frac{\hat{p}(1-\hat{p})}{n}}$ and find a value for $\hat{p}$. 
 ```{r}
-n=length(mydata$birthweight)
-
-f <- function(x) x - qnorm(0.975)*sqrt((x*(1-x))/n) -0.25
+f <- function(x) x - qnorm(0.975)*sqrt((x*(1-x))/n) - 0.25
 p.hat <- uniroot(f, c(0.25, 1))$root
 
 me=qnorm(0.9975)*sqrt((p.hat*(1-p.hat))/n)
@@ -103,38 +101,13 @@ So, the confidence interval is [0.25,0.412] and the confidence level is 95%, sin
 
 ## e)
 ```{r}
-# pmu2600 <- 34/62
-# pfu2600 <- 28/62
-# pma2600 <- 61/126
-# pfa2600 <- 65/126
-# 
-# birthweights_below_2600 <- c()
-# birthweights_above_2600 <- c()
-# 
-# for (i in 1:length(mydata$birthweight)) {
-#   if (mydata$birthweight[i] < 2600) {
-#     birthweights_below_2600 <- c(birthweights_below_2600, mydata$birthweight[i])
-#   }
-#   else birthweights_above_2600 <- c(birthweights_above_2600, mydata$birthweight[i])
-# }
-# 
-# # print the new dataset
-# mean_male_weight <- (mean(birthweights_below_2600) * 34 + mean(birthweights_above_2600) * 61)/(61 + 34)
-# mean_female_weight <- (mean(birthweights_below_2600) * 28 + mean(birthweights_above_2600) * 65)/(65 + 28)
-# sd_male_below_2600 <- sqrt(sum((birthweights_below_2600 - mean_male_weight)^2) / 33)
-# print(sd_male_below_2600)
-# print(mean_female_weight)
-# print(mean_male_weight)
+set.seed(111) # for reproducibility
+gender <- c(sample(c(rep("male", 34), rep("female", 28))),sample(c(rep("male", 61), rep("female", 65))))
+ascData <- data.frame(weight=order(mydata$birthweight),gender=gender)
 
-prop.test(c(34,28),c(95, 93))
-prop.test(c(61,65),c(95,90))
+p=t.test(weight ~ gender, data = ascData)[[3]]; p
 ```
-These proportianality tests suggest that there is no significant difference between 
-the sample proportions of the two groups, which mean that there is no significant difference
-between the mean male birthweight and mean female birthweight.
-
-
-
+Since $p>0.05$, H0 is not rejected which indicates that there is no significant difference in the mean of male and female babies. So, the claim of the expert is false.
 
 
 # Excercise 2. Cholesterol
