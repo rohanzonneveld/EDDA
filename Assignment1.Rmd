@@ -20,6 +20,116 @@ library(dplyr)
 
 # Excercise 1. Birthweight
 
+# Intro
+
+mydata <- read.table("birthweight.txt", header = TRUE, sep = "\n")
+mu <- mean(mydata$birthweight)
+sigma = sd(mydata$birthweight)
+sigma
+# mu = 2913.293 g, sigma = 697.5002
+
+# Exercise 1: a
+
+shapiro.test(mydata$birthweight)
+# W = 0.99595, pvalue = 0.8995, which means the Shapiro-Wilk test supports normality
+qqnorm(mydata$birthweight)
+hist(mydata$birthweight)
+# Both the Shapiro-Wilk test and the plots support normality
+
+n <- length(mydata$birthweight)
+alpha <- 0.04
+t_value <- qt(1-alpha/2, df=n-1)
+t_value
+lower_bound <- mu - t_value*sigma/sqrt(n)
+upper_bound <- mu + t_value*sigma/sqrt(n)
+# The 96% confidence interval lies between 2808.084 g and 3018.501 g.
+
+library(boot)
+boot_fn <- function(data, index) mean(data[index])
+boot_data <- boot(mydata$birthweight, boot_fn, R=1000)
+quantile(boot_data$t, c(0.02, 0.98))
+
+# The 96% confidence interval using bootstrap lies between 2807.927 and 3018.938
+# These two confidence intervals are very similar. Normally a bootstrapped CI is constructed
+# because of non-normality or outliers, but this data is distributed normally, so the
+# bootstrap yields the same results as the regular method.
+
+# Exercise 1: b
+
+t.test(mydata$birthweight, mu = 2800, alternative = 'greater')
+
+# This t-test supports the expert's claim that the mean birthweight is higher than 2800 g,
+# since the CI is entirely above this value. 
+
+num_above <- sum(mydata$birthweight > 2800)
+num_below <- sum(mydata$birthweight < 2800)
+
+# Perform the sign test
+binom.test(num_above, num_above + num_below, p = 0.5, alternative = "greater")
+
+# The sign test too indicates that the expert's claim was right, since p < 0.05.
+
+# Exercise 1: c
+
+library(pwr)
+sig.level <- 0.05 
+effect.size <- (2913.293 - 2800) / sigma 
+power_t <- pwr.t.test(n = n, d = effect.size, sig.level = sig.level, type = "one.sample", alternative = "greater")$power
+birthweight <- c(2786, 2977, 3076, 3277, 2826, 3106, 3016, 3131, 2846, 3011)
+#------------------------------------------------------------------------------
+# TODO: Write down the power
+# -----------------------------------------------------------------------------
+
+# Exercise 1: d
+
+proportion_under2600 <- sum(mydata$birthweight < 2600)/n
+# So now we know the proportion of babies born under 2600 gram. If we take the distance from
+# this mean to 0.25 and apply that same distance in the positive direction we get the 
+# complete confidence interval.
+distance <- proportion_under2600 - 0.25
+CI <- c(0.25, proportion_under2600 + distance)
+# The true proportion of babies born under 2600 grams lies between 25% and 40.9% of the population
+
+#-------------------------------------------------------------
+# Question: How to calculate confidence level?
+# ------------------------------------------------------------
+
+# Exercise 1: e
+
+# pmu2600 <- 34/62
+# pfu2600 <- 28/62
+# pma2600 <- 61/126
+# pfa2600 <- 65/126
+# 
+# birthweights_below_2600 <- c()
+# birthweights_above_2600 <- c()
+# 
+# for (i in 1:length(mydata$birthweight)) {
+#   if (mydata$birthweight[i] < 2600) {
+#     birthweights_below_2600 <- c(birthweights_below_2600, mydata$birthweight[i])
+#   }
+#   else birthweights_above_2600 <- c(birthweights_above_2600, mydata$birthweight[i])
+# }
+# 
+# # print the new dataset
+# mean_male_weight <- (mean(birthweights_below_2600) * 34 + mean(birthweights_above_2600) * 61)/(61 + 34)
+# mean_female_weight <- (mean(birthweights_below_2600) * 28 + mean(birthweights_above_2600) * 65)/(65 + 28)
+# sd_male_below_2600 <- sqrt(sum((birthweights_below_2600 - mean_male_weight)^2) / 33)
+# print(sd_male_below_2600)
+# print(mean_female_weight)
+# print(mean_male_weight)
+
+prop.test(c(34,28),c(95, 93))
+prop.test(c(61,65),c(95,90))
+
+# These proportianality tests suggest that there is no significant difference between 
+# the sample proportions of the two groups, which mean that there is no significant difference
+# between the mean male birthweight and mean female birthweight.
+
+
+
+
+
 # Excercise 2. Cholesterol
 ## a)
 ```{r load data 2, echo=FALSE}
