@@ -99,14 +99,11 @@ p.hat_right
 So, the confidence interval is [0.25,0.412] and the confidence level is 95%, since the $1-\alpha$-confidence interval was constructed and $\alpha$ is 5%.
 
 ## e)
+We want to test about the difference in population proportion of male and female babies weighing less than 2600 grams. We divide the sample into two groups, babies weighing less than and more than 2600 grams. Male babies make up $34/62=$ babies weighing less and $61/126$ weighing more than 2600 grams. To test if this difference is significant we perform a proportion test. The number of 'successes' equals the number of male babies in each group.
 ```{r}
-set.seed(111) # for reproducibility
-gender <- c(sample(c(rep("male", 34), rep("female", 28))),sample(c(rep("male", 61), rep("female", 65))))
-ascData <- data.frame(weight=order(mydata$birthweight),gender=gender)
-
-p=t.test(weight ~ gender, data = ascData)[[3]]; p
+p=prop.test(c(34,61),c(62,126))[[3]]; p
 ```
-Since $p>0.05$, H0 is not rejected which indicates that there is no significant difference in the mean of male and female babies. So, the claim of the expert is false.
+Since $p>0.05$, H0 is not rejected which indicates that there is no significant difference in the population proportion of male and female babies. So, the claim of the expert is false.
 
 
 # Excercise 2. Cholesterol
