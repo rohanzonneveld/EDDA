@@ -8,6 +8,7 @@ highlight: tango
 ---
 
 ```{r setup, include=FALSE}
+set.seed(111)
 knitr::opts_chunk$set(echo = TRUE)
 options(digits=3)
 library(ggplot2)
@@ -20,6 +21,26 @@ library(boot)
 library(pwr)
 ```
 
+# Opmerkingen
+1a - Geef wat meer context bij wat je doet. VB: Nu begin je met r code om de 96% CI te vinden zonder dat ergens staat dat je dat gaat doen en hoe je dat gaat doen. r code moet denk ik meer als toevoeging zijn en niet de hele opdracht.
+
+1b - zie 1a, leg uit waarom je een t-test gaat doen
+
+2c - Zouden jullie nog willen kijken naar de vraag: 'Can you improve this CI?'?
+
+3 - Vraag weghalen bovenaan
+
+3a - Shappiro Wilk does not .... etc. alinea moet er uit vm
+
+3b - label op x-as boxplot
+
+3c - labels op interaction plot zien er raar uit. Liever geen data$diet als label maar liever diet, etc.
+
+4c - Moet je niet eerst onderzoeken of er een interaction effect is en als dat er niet is pas kijken of er een main effect is? Nu staat het andersom.
+
+4 - in Rmd format zetten
+
+
 # Excercise 1. Birthweight
 
 ```{r intro 1, echo=FALSE}
@@ -29,6 +50,9 @@ sigma = sd(mydata$birthweight)
 
 ```
 ## a)
+
+To test for normality we perform a *shapiro-wilk test* and look at the histogram and QQ-plot.
+
 ```{r shapiro-wilk}
 p=shapiro.test(mydata$birthweight)[[2]]; p
 ```
@@ -87,7 +111,7 @@ birthweight <- c(2786, 2977, 3076, 3277, 2826, 3106, 3016, 3131, 2846, 3011)
 **TODO: Write down the power**
 
 ## d)
-The $1-\alpha$-confidence interval for p is $\hat{p} \pm z_{\alpha/2}\sqrt{\frac{\hat{p}(1-\hat{p})}{n}}$ based on CLT. Since we do not know the true value of p, we can resolve the equation $\hat{p_l} = \hat{p}-z_{\alpha/2}\sqrt{\frac{\hat{p}(1-\hat{p})}{n}}$ and find a value for $\hat{p}$. 
+The $1-\alpha$-confidence interval for p is found by $\hat{p} \pm z_{\alpha/2}\sqrt{\frac{\hat{p}(1-\hat{p})}{n}}$ (based on CLT). Since we do not know the true value of $\hat{p}$, we can resolve the equation $\hat{p_l} = \hat{p}-z_{\alpha/2}\sqrt{\frac{\hat{p}(1-\hat{p})}{n}}$ and find a value for $\hat{p}$. 
 ```{r}
 f <- function(x) x - qnorm(0.975)*sqrt((x*(1-x))/n) - 0.25
 p.hat <- uniroot(f, c(0.25, 1))$root
@@ -99,7 +123,7 @@ p.hat_right
 So, the confidence interval is [0.25,0.412] and the confidence level is 95%, since the $1-\alpha$-confidence interval was constructed and $\alpha$ is 5%.
 
 ## e)
-We want to test about the difference in population proportion of male and female babies weighing less than 2600 grams. We divide the sample into two groups, babies weighing less than and more than 2600 grams. Male babies make up $34/62=$ babies weighing less and $61/126$ weighing more than 2600 grams. To test if this difference is significant we perform a proportion test. The number of 'successes' equals the number of male babies in each group.
+We want to test about the difference in population proportion of male and female babies weighing less than 2600 grams. We divide the sample into two groups, babies weighing less than and more than 2600 grams. The proportion of male babies weighing less than 2600 grams equals $34/62=0.548$ and babies weighing more equals $61/126=0.484$. To test if this difference is significant we perform a proportion test. The number of 'successes' equals the number of male babies in each group.
 ```{r}
 p=prop.test(c(34,61),c(62,126))[[3]]; p
 ```
@@ -152,7 +176,7 @@ cor(Before,After8weeks)
 plot(Before,After8weeks)
 ```
 
-The columns are strongly correlated.
+Both the calculated and the plotted correlation indicate that the columns are strongly correlated.
 
 ## b)
 Since the study measured two sets of observations obtained from the same individuals the data is paired. In this case, each individual's before and after cholesterol levels are paired observations. Two relevant statistical tests for paired samples are: paired t-test and Wilcoxon signed-rank test.
@@ -172,7 +196,7 @@ p=wilcox.test(After8weeks, Before, paired = TRUE)[[3]]; p
 The p-value is lower than 0.05, so H0 is rejected meaning that the true location of the population is different between columns.
 
 ### Permutation test
-The data is paired and we want to test for a difference between groups. Also, a permutation test does not assume any particular distribution of the data, therefore we can apply a permutation test to determine whether the diet has an effect. The R code to perform this test is as follows:
+A permutation test is performed when the data is paired and we want to test for a difference between groups. Also, a permutation test does not assume any particular distribution of the data, therefore we can apply a permutation test to determine whether the diet has an effect. The R code to perform this test is as follows:
 ```{r permutation test, echo=TRUE}
 mystat=function(x,y) {mean(x-y)}
 B=1000; tstar=numeric(B)
@@ -198,7 +222,7 @@ The value of p is equal to zero, which means H0 can be rejected. This means that
 
 ## c)
 
-The mean of a uniform sample is given by $E[\bar{X}] = (1/n) * \sum{Xi} = 1/18 * \sum{Xi}$.The variation of a uniform sample is also given, $Var(Xi) = ((\theta - 3)^2)/12$. So the variance of the sample mean is given by $Var(\bar{X}) = Var((1/18) * \sum{Xi}) = (1/18^2) * \sum Var(Xi) = ((\theta - 3)^2)/(12 * 18 * 18)$. According to the central limit theorem, as n goes to infinity, the distribution of $\bar{X}$ approaches a normal distribution with mean $E[\bar{X}]$ and variance $Var(\bar{X})$. The mean of a uniform distribution is in the center, so to estimate the maximum of a uniform distribution ($\bar{\theta}$) one can simply multiply the mean by 2 and subtract the start of the interval.  
+The mean of a uniform sample is given by $E[\bar{X}] = (1/n) * \sum{Xi} = 1/18 * \sum{Xi}$. The variation of a uniform sample is also given, $Var(Xi) = ((\theta - 3)^2)/12$. So the variance of the sample mean is given by $Var(\bar{X}) = Var((1/18) * \sum{Xi}) = (1/18^2) * \sum Var(Xi) = ((\theta - 3)^2)/(12 * 18 * 18)$. According to the central limit theorem, as n goes to infinity, the distribution of $\bar{X}$ approaches a normal distribution with mean $E[\bar{X}]$ and variance $Var(\bar{X})$. The mean of a uniform distribution is in the center, so to estimate the maximum of a uniform distribution ($\bar{\theta}$) one can simply multiply the mean by 2 and subtract the start of the interval.  
 ```{r estimate theta, echo=TRUE}
 x.bar = mean(After8weeks)
 theta.hat = 2 * x.bar - 3
@@ -241,6 +265,10 @@ for(theta in 4:12){
 H0
 ```
 
+|$\theta$ |4|5|6|7|8|9|10|11|12|
+|---|---|---|---|---|---|---|---|---|---|
+|H0       |0|0|0|0|1|0|0 |0 |0 |
+
 The H0 is rejected for all values of $\theta$ except 8. This result was to be expected as the data ranges from 3 to 8 as can be seen in the histogram.
 
 The *Kolmogorov-Smirnov* is used to test if two samples are from the same distribution. The actual data can be compared to data generated from a uniform distribution. So it is perfectly suited to use in this situation.
@@ -255,7 +283,10 @@ for(theta in 4:12){
 }
 H0
 ```
-The null hypothesis is rejected in cases where $\theta$<8.
+|$\theta$ |4|5|6|7|8|9|10|11|12|
+|---|---|---|---|---|---|---|---|---|---|
+|H0       |0|0|0|1|1|1|1 |0 |0 |
+
 
 ## e)
 To test whether the median cholesterol level after 8 weeks of low fat diet is less than 6 a *Wilcoxon signed-rank test* is performed.
@@ -340,7 +371,7 @@ grid.arrange(weight_boxplt, diet_boxplt,  ncol = 2)
 
 ```
 
-Because the differences between the pre and post diet weight data is distributed normally, a t-test can be used to determine whether these two groups differ statistically significantly from each other. Because the data is the pre and post weight from the same subjects, in this situation a paired t-test is applicable. H0 is that the groups are not different.
+Because the differences between the pre and post diet weight data is distributed normally, a t-test can be used to determine whether these two groups differ significantly from each other. Because the data is the pre and post weight from the same subjects, in this situation a paired t-test is applicable. H0 is that the groups are not different.
 
 ```{r t test, echo=TRUE}
 t_test1 <- t.test(data$preweight, data$weight6weeks, data = data, paired = TRUE)
