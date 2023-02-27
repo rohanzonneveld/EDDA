@@ -548,11 +548,16 @@ anova(npk_lmm) # main effect for both block and N
 ## d)
 
 ```{r peas d}
-full_model = lm(yield ~ N + P + K + block + N:P + N:K + P:K, data = npk)
-summary(full_model)
+model1 = lm(yield ~ N + P + K * block, data = npk)
+model2 = lm(yield ~ N + K + P * block, data = npk)
+model3 = lm(yield ~ K + P + N * block, data = npk)
+model4 = lm(yield ~ N + K + P + block, data = npk)
+summary(model1)
+summary(model2)
+summary(model3)
+summary(model4)
 ```
-
-This model shows that there is only a significant effect of the use of nitrogen, as discussed in the previous exercise, but also for the use of block 3, which means that this block produces different yields than the other blocks, even when taking into account the different uses of nitrogen, phosphorus and potassium. There are no effects for the use of phosphorus and potassium. There are also no interaction effects between nitrogen, phosphorus and potassium.
+These models show that there is a significant effect for the use of block 3 and the use of nitrogen. It also shows that there is a significant effect for the use of Potassium in model2, model3, model4, while it doesn't show this in model1. Our favorite model is model3, because it shows the most significant relationships between variables and yield of all the stated effects above.
 
 ## e)
 
