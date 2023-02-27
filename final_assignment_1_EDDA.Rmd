@@ -1,0 +1,566 @@
+---
+title: "Assignment 1 - Group 27"
+author: "Joost Driessen, Emma van Lipzig, Rohan Zonneveld"
+output: pdf_document
+date: "`r Sys.Date()`"
+theme: sandstone 
+highlight: tango
+---
+
+```{r setup, include=FALSE}
+set.seed(111)
+knitr::opts_chunk$set(echo = TRUE)
+options(digits=3)
+library(ggplot2)
+library(readr)
+library(gridExtra)
+library(viridis)
+library(reshape2)   
+library(dplyr)
+library(boot)
+library(pwr)
+library(MASS)
+library(lme4)
+```
+
+# Exercise 1 - Birthweight
+
+```{r intro 1, echo=FALSE}
+mydata <- read.table("birthweight.txt", header = TRUE, sep = "\n")
+mu <- mean(mydata$birthweight)
+sigma = sd(mydata$birthweight)
+```
+
+## a)
+
+To test for normality we perform a *shapiro-wilk test* and look at the histogram and QQ-plot.
+
+```{r shapiro-wilk}
+p=shapiro.test(mydata$birthweight)[[2]]; p
+```
+
+$p>0.05$, which means the Shapiro-Wilk test supports normality.
+
+```{r normality plots 1, fig.height=4, fig.width=8, echo=FALSE}
+par(mfrow=c(1,2))
+hist(mydata$birthweight, main='histogram of birthweight')
+qqnorm(mydata$birthweight)
+```
+
+The QQplot and the histogram clearly support normality. This means it is safe to construct the CI.
+
+```{r 96% CI}
+n <- length(mydata$birthweight)
+alpha <- 0.04
+t_value <- qt(1-alpha/2, df=n-1)
+t_value
+lower_bound <- mu - t_value*sigma/sqrt(n)
+upper_bound <- mu + t_value*sigma/sqrt(n)
+```
+
+The 96% confidence interval lies between 2808.084 g and 3018.501 g.
+
+```{r sample size check}
+z = qnorm(0.98)
+E = (100/mu)/2
+needed_sample_size = (z*z * 0.96 * 0.04)/(E*E)
+
+```
+
+The minimum sample size needed to obtain a CI of 100 grams given the current mean is 550.
+
+```{r bootstrap birthweight}
+boot_fn <- function(data, index) mean(data[index])
+boot_data <- boot(mydata$birthweight, boot_fn, R=1000)
+quantile(boot_data$t, c(0.02, 0.98))
+```
+
+The 96% confidence interval using bootstrap lies between 2806 and 3016. These two confidence intervals are very similar. Normally a bootstrapped CI is constructed because of non-normality or outliers, but this data is distributed normally, so the bootstrap yields the same results as the regular method.
+
+## b)
+
+To investigate the claim by the expert we performed a one-tailed t-test, because the expert claimed the mean birthweight was higher than 2800 grams. The result of this test was that the mean birthweight was indeed higher than 2800. In fact, the lower bound of the 95% CI was 2829 gram. The upper bound was 'Inf' because this was a one-tailed test. The p-value of this t-test was 0.01 which supports H1.
+
+The sign test too indicates that the expert's claim was right, since p \< 0.05.
+
+```{r ttest birthweight}
+t.test(mydata$birthweight, mu = 2800, alternative = 'greater')
+
+num_above <- sum(mydata$birthweight > 2800)
+num_below <- sum(mydata$birthweight < 2800)
+binom.test(num_above, num_above + num_below, p = 0.5, alternative = "greater")
+```
+
+## c)
+
+The p-value of the t-test is 0.01357, which means the power is 1-0.01357, or approximately 0.986. The p value of the sign test is 0.03399, which means the power is 1-0.03399, or approximately 0.966.
+
+## d)
+
+The $1-\alpha$-confidence interval for p is found by $\hat{p} \pm z_{\alpha/2}\sqrt{\frac{\hat{p}(1-\hat{p})}{n}}$ (based on CLT). Since we do not know the true value of $\hat{p}$, we can resolve the equation $\hat{p_l} = \hat{p}-z_{\alpha/2}\sqrt{\frac{\hat{p}(1-\hat{p})}{n}}$ and find a value for $\hat{p}$.
+
+```{r}
+f <- function(x) x - qnorm(0.975)*sqrt((x*(1-x))/n) - 0.25
+p.hat <- uniroot(f, c(0.25, 1))$root
+me=qnorm(0.9975)*sqrt((p.hat*(1-p.hat))/n)
+p.hat_right=p.hat+me
+p.hat_right
+```
+
+So, the confidence interval is [0.25,0.412] and the confidence level is 95%, since the $1-\alpha$-confidence interval was constructed and $\alpha$ is 5%.
+
+## e)
+
+We want to test about the difference in population proportion of male and female babies weighing less than 2600 grams. We divide the sample into two groups, babies weighing less than and more than 2600 grams. The proportion of male babies weighing less than 2600 grams equals $34/62=0.548$ and babies weighing more equals $61/126=0.484$. To test if this difference is significant we perform a proportion test. The number of 'successes' equals the number of male babies in each group.
+
+```{r}
+p=prop.test(c(34,61),c(62,126))[[3]]; p
+```
+
+Since $p>0.05$, H0 is not rejected which indicates that there is no significant difference in the population proportion of male and female babies. So, the claim of the expert is false.
+
+# Exercise 2 - Cholesterol
+
+## a)
+
+```{r load data 2 bla, echo=FALSE}
+data=read.table(file="cholesterol.txt",header=TRUE)
+Before = data$Before
+After8weeks = data$After8weeks
+```
+
+We summarise the data by giving a summary and by making a histogram, a boxplot and a QQ-plot of both columns.
+
+### Before Diet
+
+```{r summarise Before, fig.height=2, fig.width=6, echo=FALSE}
+par(mfrow=c(1,3))
+summary(Before)
+hist(Before,xlab='cholesterol', main='Histogram')
+boxplot(Before, ylab='cholesterol')
+qqnorm(Before)
+```
+
+### After 8 weeks of diet
+
+```{r summarise After8weeks, fig.height=2, fig.width=6, echo=FALSE}
+par(mfrow=c(1,3))
+summary(After8weeks)
+hist(After8weeks, xlab='cholesterol', main='Histogram')
+boxplot(After8weeks, ylab='cholesterol')
+qqnorm(After8weeks)
+par(mfrow=c(1,1))
+```
+
+Both histograms look normally distributed, the boxplots are symmetrical with the mean in the center of the box and the QQ-plots are linear. In conclusion, the plots give no reason to suspect that the data is drawn from a non-normal distribution.
+
+To investigate if the columns are correlated we calculate the correlation according to the literature. To visualize the correlation a plot is created with before on the x-axis and after8weeks on the y-axis.
+
+```{r correlation, echo=TRUE}
+cor(Before,After8weeks)
+```
+
+```{r, fig.height=3, fig.width=3, echo=FALSE}
+plot(Before,After8weeks)
+```
+
+Both the calculated and the plotted correlation indicate that the columns are strongly correlated.
+
+## b)
+
+Since the study measured two sets of observations obtained from the same individuals the data is paired. In this case, each individual's before and after cholesterol levels are paired observations. Two relevant statistical tests for paired samples are: paired t-test and Wilcoxon signed-rank test.
+
+A *paired t-test* is performed when the data is normally distributed. Looking back to *a)* we can see that the data is indeed normally distributed.
+
+```{r t-test, echo=TRUE}
+p=t.test(After8weeks, Before, paired = TRUE)[[3]]; p
+```
+
+The p-value is lower than 0.05, which means H0 can be rejected meaning that there is indeed a true difference in means between the two variables.
+
+The *Wilcoxon signed-rank test* does not assume that the data is normally distributed and is therefore a useful alternative to the paired t-test when this assumption is violated.
+
+```{r wilcoxon signed rank test, echo=TRUE}
+p=wilcox.test(After8weeks, Before, paired = TRUE)[[3]]; p
+```
+
+The p-value is lower than 0.05, so H0 is rejected meaning that the true location of the population is different between columns.
+
+### Permutation test
+
+A permutation test is performed when the data is paired and we want to test for a difference between groups. Also, a permutation test does not assume any particular distribution of the data, therefore we can apply a permutation test to determine whether the diet has an effect. The R code to perform this test is as follows:
+
+```{r permutation test, echo=TRUE}
+mystat=function(x,y) {mean(x-y)}
+B=1000; tstar=numeric(B)
+for (i in 1:B) {
+  dietstar=t(apply(cbind(After8weeks,Before),1,sample))
+  tstar[i]=mystat(dietstar[,1],dietstar[,2]) }
+myt=mystat(After8weeks,Before)
+myt
+```
+
+In the histogram below the distribution of t\* is depicted. The distribution is normal, due to CLT. The actual value of the T statistic is depicted in red.
+
+```{r tstar histogram, fig.height=3, fig.width=7, echo=FALSE}
+hist(tstar, xlim=c(-0.7,0.7))
+lines(rep(myt,2),c(0,20), col="red",lwd=2)
+```
+
+```{r calculate p-value, echo=TRUE}
+pl=sum(tstar<myt)/B
+pr=sum(tstar>myt)/B
+p=2*min(pl,pr); p
+```
+
+The value of p is equal to zero, which means H0 can be rejected. This means that there is a significant difference between before and after the diet.
+
+## c)
+
+The mean of a uniform sample is given by $E[\bar{X}] = (1/n) * \sum{Xi} = 1/18 * \sum{Xi}$. The variation of a uniform sample is also given, $Var(Xi) = ((\theta - 3)^2)/12$. So the variance of the sample mean is given by $Var(\bar{X}) = Var((1/18) * \sum{Xi}) = (1/18^2) * \sum Var(Xi) = ((\theta - 3)^2)/(12 * 18 * 18)$. According to the central limit theorem, as n goes to infinity, the distribution of $\bar{X}$ approaches a normal distribution with mean $E[\bar{X}]$ and variance $Var(\bar{X})$. The mean of a uniform distribution is in the center, so to estimate the maximum of a uniform distribution ($\bar{\theta}$) one can simply multiply the mean by 2 and subtract the start of the interval.
+
+```{r estimate theta, echo=TRUE}
+x.bar = mean(After8weeks)
+theta.hat = 2 * x.bar - 3
+```
+
+A 95% confidence interval for $\theta$ is found using the central limit theorem by calculating the margin of error and adding and subtracting it to $\bar{\theta}$.
+
+```{r calculate CI, echo=TRUE}
+z = qnorm(0.975) 
+sigma = sqrt(((theta.hat - 3)^2)/(12*18*18))
+me = z * sigma
+ci = c(theta.hat - me, theta.hat + me)
+ci
+```
+
+This confidence interval means that for values of $8.38<\theta<8.73$ the data is not significantly different than if the data for the cholesterol after eight weeks of diet was drawn from $Unif[3,\theta]$.
+
+There are two options to improve this CI. Firstly, if more data is gathered, the sample size (n) is higher, which leads to a smaller CI and more accuracy at the same confidence level. Secondly, you can use a higher alpha. This will lead to less accuracy at the same confidence level, but will result in a smaller CI.
+
+## d)
+
+```{r histogram After8weeks, echo=FALSE}
+hist(After8weeks, freq = FALSE, xlim = c(3, 12))
+curve(dunif(x, min = 3, max = 12), add = TRUE, col="blue", lwd = 2)
+```
+
+The After8weeks column does not appear to be uniformly distributed. Since there are no values bigger than 8 in the data it is expected that values of $\theta>8$ will reject the null hypothesis. To investigate if After8weeks is drawn from an uniform distribution in [3,$\theta$] a bootstrap test is performed. Surrogate T-values are generated that are representative of values of T under H0. The test statistic (in this case the maximum) is computed. This process is repeated 1000 times. Finally, the T-value is compared to the surrogate T\*-values to determine a p-value.
+
+```{r bootstrap test, echo=TRUE}
+H0=rep(1, 9)
+for(theta in 4:12){
+  n=length(After8weeks); t=max(After8weeks)
+  B=1000; Tstar=numeric(B)
+  for(i in 1:B) {
+   Xstar=runif(n,3,theta)
+   Tstar[i]=max(Xstar)}
+  pl=sum(Tstar<t)/B;pr=sum(Tstar>t)/B
+  p=2*min(pl,pr)
+  if(p<0.05){H0[theta-3]=0}}
+H0
+```
+
+| $\theta$ | 4   | 5   | 6   | 7   | 8   | 9   | 10  | 11  | 12  |
+|----------|-----|-----|-----|-----|-----|-----|-----|-----|-----|
+| H0       | 0   | 0   | 0   | 0   | 1   | 0   | 0   | 0   | 0   |
+
+The H0 is rejected for all values of $\theta$ except 8. This result was to be expected as the data ranges from 3 to 8 as can be seen in the histogram.
+
+The *Kolmogorov-Smirnov* is used to test if two samples are from the same distribution. The actual data can be compared to data generated from a uniform distribution. So it is perfectly suited to use in this situation.
+
+```{r KS-test, echo=TRUE}
+H0=rep(1,9)
+for(theta in 4:12){
+  n=length(After8weeks)
+  sample=runif(n,3,theta)
+  p=ks.test(After8weeks,sample)$p.value
+  if(p<0.05){H0[theta-3]=0}
+}
+H0
+```
+
+| $\theta$ | 4   | 5   | 6   | 7   | 8   | 9   | 10  | 11  | 12  |
+|----------|-----|-----|-----|-----|-----|-----|-----|-----|-----|
+| H0       | 0   | 0   | 0   | 1   | 1   | 1   | 1   | 0   | 0   |
+
+## e)
+
+To test whether the median cholesterol level after 8 weeks of low fat diet is less than 6 a *Wilcoxon signed-rank test* is performed.
+
+```{r wilcoxon signed-rank test, warning=FALSE}
+p=wilcox.test(After8weeks,mu=6,alt="l")[[3]]; p
+```
+
+The p-value is bigger than 0.05 so the null hypothesis can not be rejected. This means that it is not statistically significant that the population median is lower than 6.
+
+```{r calculate proportion, echo=TRUE}
+n=sum(After8weeks<4.5)
+prop=n/length(After8weeks);prop
+```
+
+The proportion of the values lower than 4.5 is less than 25%
+
+# Exercise 3 - Diet
+
+```{r load data, include=FALSE}
+data <- read.table(file= 'diet.txt', header=TRUE)
+#View(data)
+```
+
+```{r add data, include=FALSE}
+data$weight.lost <- 0
+for (i in 1:78) {
+  data$weight.lost[i] <- data$preweight[i] - data$weight6weeks[i]
+}
+#summary(data) #inspect data
+```
+
+```{r show add data, echo=FALSE}
+head(data, n = 3) #weight.lost column has been added
+```
+
+## a)
+
+```{r graphical summaries - normality, echo=FALSE}
+qq_pre <- ggplot(data) + geom_qq(aes(sample=preweight)) + theme_light() + labs(title="preweight")
+qq_post <- ggplot(data) + geom_qq(aes(sample=weight6weeks))  + theme_light()  + labs(title="weight after six weeks")
+hist_pre <- ggplot(data, aes(x=preweight))+ geom_histogram(binwidth=1, color="seagreen", fill="lightgreen", linewidth=.3) + theme_light() + labs(title="preweight")
+hist_post <- ggplot(data, aes(x=weight6weeks))+ geom_histogram(binwidth=1, color="seagreen", fill="lightgreen", linewidth=.3) + theme_light() + labs(title="weight after six weeks")
+#max(data$preweight)
+#max(data$weight6weeks)
+qq_diff <- ggplot(data) + geom_qq(aes(sample=weight.lost)) + theme_light() + labs(title="lost weight") 
+hist_diff <- ggplot(data, aes(x=weight.lost))+ geom_histogram(binwidth=1, color="seagreen", fill="lightgreen", linewidth=.3) + theme_light() + labs(title=" lost weight")
+grid.arrange(qq_pre, hist_pre, qq_post, hist_post, qq_diff, hist_diff, ncol=2)
+```
+
+The qqplot and histogram of the weigth before diet show that this data does not appear to be normally distributed, as there is one large outlier of 103. The same goes for the weight after six weeks, so after the diet. This again does not seem normally distributed because of the outlier 103. However, the differences between the two, represented as weight.lost, do appear to be distributed normally. This can be seen in both the QQ plot and histogram.
+
+The Shapiro-Wilk test does not reject normality, for the preweight data. As this test does not always reject normality for non-normal distributions, this distribution may still be non-normal (as indicated by the histogram and qqplot).
+
+The Shapiro-Wilk test rejects normality (if we take alpha = 0.05), for the weight at six weeks data. When this test rejects normality, the distribution should indeed be non-normal, which corresponds with the qqplot and histogram of the data.
+
+```{r test - normality, include=FALSE}
+stp <- shapiro.test(data$preweight)
+sta <- shapiro.test(data$weight6weeks)
+stp$p.value
+sta$p.value
+```
+
+| Data         | p-value for Shapiro-Wilk test |
+|--------------|-------------------------------|
+| preweight    | 0.055                         |
+| weight6weeks | 0.011                         |
+
+The boxplots below shows that there may be a difference in the weight before and after dieting. The first boxplot shows the distribution of weight data before and after a diet, the second boxplot shows the distribution of the difference between these weights, which is the distribution of the weight loss.
+
+```{r graphical summaries - data against each other, echo=FALSE, fig.height=2, message=FALSE, warning=FALSE}
+data_subset <- dplyr::select(data, preweight, weight6weeks)
+data_long <- melt(data_subset)
+weight_boxplt <- ggplot(data_long, aes(x = variable, y = value)) +         
+  geom_boxplot(color="seagreen", fill="lightgreen") + labs(title = 'weights before and after diet', x = 'diet stage', y = 'weight')+ theme_light()
+diet_boxplt <- ggplot(data, aes( y=weight.lost)) + geom_boxplot(color="seagreen", fill="lightgreen") + labs(title='weightloss') + theme_light()
+grid.arrange(weight_boxplt, diet_boxplt,  ncol = 2)
+```
+
+Because the differences between the pre and post diet weight data is distributed normally, a t-test can be used to determine whether these two groups differ significantly from each other. Because the data is the pre and post weight from the same subjects, in this situation a paired t-test is applicable. H0 is that the groups are not different.
+
+```{r t test, echo=TRUE}
+t_test1 <- t.test(data$preweight, data$weight6weeks, data = data, paired = TRUE)
+t_test1$p.value
+```
+
+The p value of the t-test is \< 0.05, therefore H0 is rejected. This means that the means of preweight and weight6weeks statistically differ. As the weightloss over the six weeks of dieting was significant, it could be that diet has an influence on weightloss. However, this does not take into account other factors included in the experiment like gender and age.
+
+## b)
+
+Apply one-way ANOVA to test whether type of diet has an effect on the lost weight. Do all three types diets lead to weight loss? Which diet was the best for losing weight? Can the Kruskal-Wallis test be applied for this situation?
+
+The boxplots below show that that different diets may have different effects on weightloss.
+
+```{r graphical summaries - ANOVA, echo=FALSE, fig.height=2}
+diet_g_boxplt <- ggplot(data, aes( y=weight.lost, group = diet)) + geom_boxplot(color="seagreen", fill="lightgreen") + labs(title='weightloss per diet', x='diet') + theme_light()
+diet_g_boxplt
+```
+
+The summary below shows that the study is not a balanced design. Diet 1 has less participants than diet 2 and 3.
+
+The ANOVA with treatment parametrization and diet 1 as base level shows that the other diets differ significantly from diet 1. This means that some diets are more effective for weightloss than others. If the study had a 'no diet' treatment, this would have been a good base level to use, however, this is not the case. As it is not clear which of the diets should be the base level, it is better to use sum parametrization.
+
+Relevant columns have been set to factor using `data$diet <- as.factor(data$diet)`. The following code has been used for the anova: `dietaov <- lm(weight.lost ~ diet, data=data) ; anova(dietaov).`
+
+A summary of the treatment parametrization model shows that diet 3 is better for weightloss than diet 1. A summary of the model with sum parametrization shows that diet 2 differs significantly from the global diet mean (p = 0.039). Although all diets can be used for weightloss, diet 2 and 3 are better than diet 1. A t-test shows that diet 2 and 3 are significantly different (p APPROX 0.003), which implies that diet 3 is best for losing weight.
+
+```{r ANOVA, include=FALSE}
+data$diet <- as.factor(data$diet) # diet is numerical but needs to be factor for ANOVA
+is.factor(data$diet) # True
+summary(data$diet) #design is not balanced
+# treatment parametrization, diet1 is base level
+dietaov <- lm(weight.lost ~ diet, data=data)
+a1 <- anova(dietaov)
+summary(dietaov)
+# sum parametrization
+contrasts(data$diet)=contr.sum
+dietaov2 <- lm(weight.lost ~ diet, data=data)
+a2 <- anova(dietaov2)
+summary(dietaov2)
+# t-test
+data_diet2 <- data[data$diet == 2,]
+data_diet3 <- data[data$diet == 3,]
+names(data_diet3)[8]<- paste("weight.lost2")
+data_diet23 <- cbind(data_diet2,data_diet3)
+t_test2 <- t.test(data_diet23$weight.lost, data_diet23$weight.lost2, data = data_diet23, paired = FALSE)
+```
+
+| parametrization | p-value |     |
+|-----------------|---------|-----|
+| treatment       | 0.003   |     |
+| sum             | 0.003   |     |
+
+Below the model assumptions for the two ANOVA's are tested. The qqplots show that the residuals for both models seem normally distributed, and neither plot of the fitted against actual residuals shows particular patterns. Therefore the model assumptions are met for both ANOVA's. Because these assumptions are met, a non-parametric test like Kruskall-Wallis would be weaker to use. This is based on ranks, which means a lot of information is thrown out when using Kruskal-Wallis. It is still possible to use this test, but in this case it would not provide better insights than ANOVA.
+
+```{r ANOVA normality, echo=FALSE, fig.height=2}
+qq_aovres1 <- ggplot(data) + geom_qq(aes(sample=residuals(dietaov)))  + theme_light()  + labs(title="weight.lost ~ diet treatment")
+scatter_aovres1 <- ggplot(dietaov, aes(fitted(dietaov), residuals(dietaov))) + geom_point() + theme_light() + labs(title="weight.lost ~ diet treatment")
+qq_aov2res2 <- ggplot(data) + geom_qq(aes(sample=residuals(dietaov2)))  + theme_light()  + labs(title="weight.lost ~ diet sum")
+scatter_aov2res2 <- ggplot(dietaov2, aes(fitted(dietaov2), residuals(dietaov2))) + geom_point() + theme_light() + labs(title="lm weight.lost ~ diet sum")
+grid.arrange(qq_aovres1, scatter_aovres1, ncol=2)
+grid.arrange(qq_aov2res2, scatter_aov2res2, ncol=2)
+```
+
+## c)
+
+Use two-way ANOVA to investigate effect of the diet and gender (and possible interaction) on the lost weight, using the following code: `genderlmi <- lm(weight.lost ~ diet * gender, data = data) ; anova(genderlmi)`, `genderlmm <- lm(weight.lost ~ diet + gender, data = data) ; anova(genderlmm)`.
+
+The two-way ANOVAs below show an interaction effect between gender and diet on weight loss, a main effect of diet on weight loss and no main effect of gender on weight loss. The factor diet is sum parametrized because there is no clear reason to pick one of the diets as a base level.
+
+```{r two way ANOVA gender, include=FALSE}
+data$gender <- as.factor(data$gender)
+is.factor(data$gender) # TRUE
+genderlmi <- lm(weight.lost ~ diet * gender, data = data) # interaction effects
+genderaovi <- anova(genderlmi)
+genderlmm <- lm(weight.lost ~ diet + gender, data = data) # main effects
+genderaovm <- anova(genderlmm)
+```
+
+| model         | effect      | p-value |
+|---------------|-------------|---------|
+| diet + gender | diet:gender | 0.093   |
+| diet + gender | diet        | 0.007   |
+| diet + gender | gender      | 0.877   |
+
+The interaction plots show that indeed diet matters a lot. The specifically for diet 2 and 3 the difference between the genders is very pronounced. It looks like gender matters less as the lines for diet 1 and 2 look somewhat similar, but the line for diet 3 is very different.
+
+```{r interaction plots gender, echo=FALSE, fig.height=4}
+par(mfrow=c(1,2))
+interaction.plot(data$gender, data$diet, data$weight.lost,  xlab = 'gender', ylab='weight.lost', trace.label = 'diet')
+interaction.plot(data$diet, data$gender, data$weight.lost, xlab = 'diet', ylab= 'weight.lost', trace.label =  'gender')
+```
+
+Both the fitted against actual residual plot and qq residual plot indicate that the additive model does not violate the assumption of normality. However, the spread of the residuals looks different in the last column from the other columns for the interaction model. The QQ residual plot also does not look completely normal. Therefore it is doubtful that the assumption of normality is met for the interaction model.
+
+```{r two way anova gender normality, echo=FALSE, fig.height=3}
+par(mfrow=c(1,2))
+qqnorm(residuals(genderlmi))
+qqnorm(residuals(genderlmm))
+```
+
+```{r qqnormdingen, echo=FALSE, fig.height=2}
+scatter_genderlmm <- ggplot(genderlmm, aes(fitted(genderlmm), residuals(genderlmm))) + geom_point() + theme_light() + labs(title="Fitted against actual residuals of lm weight.lost ~ diet + gender")
+scatter_genderlmi <- ggplot(genderlmi, aes(fitted(genderlmi), residuals(genderlmi))) + geom_point() + theme_light() + labs(title="Fitted against actual residuals of lm weight.lost ~ diet * gender")
+grid.arrange(scatter_genderlmm, scatter_genderlmi, ncol=2)
+```
+
+## e)
+
+I prefer the approach from c), because this takes into account more of the data that is gathered during the experiment. Therefore this could lead to more accurate expectations of how different diets work for different people. Because an interaction effect between gender and diet was found, the interaction model is used to predict the weight loss per diet for both genders with respective average preweights, using the code `predict(genderlmi, newdata)`. As expected, for both genders, the predicted weightloss is highest for diet 3.
+
+```{r predicting for diets, include=FALSE}
+data_gender0 <- data[data$gender == 0,]
+data_gender1 <- data[data$gender == 1,]
+summary(data_gender0$preweight) # to find mean preweight for gender 0
+summary(data_gender1$preweight) # to find mean preweight for gender 1
+newdata <- data.frame(gender=c(0,0,0,1,1,1), 
+ preweight=c(67.12,67.12,67.12,79.03,79.03,79.03), diet=c(1,2,3,1,2,3))
+newdata$gender <- as.factor(newdata$gender)
+newdata$diet <- as.factor(newdata$diet)
+predict(genderlmi, newdata)
+```
+
+| gender | preweight | diet | predicted weightloss |
+|--------|-----------|------|----------------------|
+| 0      | 67.12     | 1    | 3.05                 |
+| 0      | 67.12     | 2    | 2.607                |
+| 0      | 67.12     | 3    | 5.88                 |
+| 1      | 79.03     | 1    | 3.65                 |
+| 1      | 79.03     | 2    | 4.109                |
+| 1      | 79.03     | 3    | 4.233                |
+
+# Exercise 4 - Yield of peas
+
+## a)
+
+The code below makes a dataframe where the soil additives are distributed over the plots, by randomly assigning 2 additives to two plots per block.
+
+```{r peas a}
+#View(npk)
+a <- c(1,1,0,0) # apply soil additive twice per block
+soil_df <- data.frame(block = c(rep(1,4), rep(2,4), rep(3,4), rep(4,4), rep(5,4), rep(6,4)), 
+                      plot = c(1:24), # sample randomizes application per block
+                      N = c(sample(a),sample(a),sample(a),sample(a),sample(a),sample(a)), 
+                      P = c(sample(a),sample(a),sample(a),sample(a),sample(a),sample(a)),
+                      K = c(sample(a),sample(a),sample(a),sample(a),sample(a),sample(a)))
+```
+
+## b)
+
+It appears that, for some blocks, the yield is higher with nitrogen and for other blocks without nitrogen. The mean yield for the plots with nitrogen is higher (57.68 vs 52.07). However, the yield per block varies widely. For some blocks the yield is higher with, and for some without nitrogen. It is therefore important to take block into account, as these results indicate that applying nitrogen will not always lead to a higher yield.
+
+```{r peas npk, echo=FALSE}
+npk_N <- npk[npk$N == 1,]
+npk_NN <- npk[npk$N == 0,]
+
+N_bxplt <- ggplot(npk_N, aes( y=yield, group = block)) + 
+  geom_boxplot(color="seagreen", fill="lightgreen") + labs(title='with nitrogen') + theme_light()
+NN_bxplt <- ggplot(npk_NN, aes( y=yield, group = block)) + 
+  geom_boxplot(color="seagreen", fill="lightgreen") + labs(title='without nitrogen') + theme_light()
+
+grid.arrange(N_bxplt, NN_bxplt, ncol=2)
+
+mean(npk_N$yield)
+mean(npk_NN$yield)
+```
+
+## c)
+
+The full-two way ANOVA shows no interaction effect between the two, but main effect for block and nitrogen. It was sensible to include block in this model, because, as the previous boxplots already implied, results vary per block. The Friedman test is not applicable in this situation because there are two, not one, observations per cell. Specifically, in each block the condition nitrogen and no nitrogen appears twice.
+
+```{r npk two way anova}
+npk$block <- as.factor(npk$block)
+npk$N <- as.factor(npk$N)
+npk_lmi <- lm(yield ~ block * N, data=npk) # interaction effects
+npk_lmm <- lm(yield ~ block + N, data=npk) # main effects
+
+anova(npk_lmi) # no interaction effect 
+anova(npk_lmm) # main effect for both block and N
+```
+
+## d)
+
+```{r peas d}
+full_model = lm(yield ~ N + P + K + block + N:P + N:K + P:K, data = npk)
+summary(full_model)
+```
+
+This model shows that there is only a significant effect of the use of nitrogen, as discussed in the previous exercise, but also for the use of block 3, which means that this block produces different yields than the other blocks, even when taking into account the different uses of nitrogen, phosphorus and potassium. There are no effects for the use of phosphorus and potassium. There are also no interaction effects between nitrogen, phosphorus and potassium.
+
+## e)
+
+```{r peas e}
+full_model <- lmer(yield ~ N + (1|block), data=npk, REML = FALSE) 
+partial_model <- lmer(yield ~ (1|block), data=npk, REML = FALSE) 
+
+anova(partial_model,full_model) 
+```
+
+The ANOVA shows that there is a main effect for Nitrogen using a mixed model, with variable block modelled as a random effect.
