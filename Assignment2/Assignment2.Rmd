@@ -1,0 +1,70 @@
+---
+title: "Assignment 1 - Group 27"
+author: "Joost Driessen, Emma van Lipzig, Rohan Zonneveld"
+output: pdf_document
+date: "`r Sys.Date()`"
+theme: sandstone 
+highlight: tango
+---
+
+```{r setup, include=FALSE}
+set.seed(111)
+knitr::opts_chunk$set(echo = TRUE)
+options(digits=3)
+
+```
+
+
+# Excercise 1
+
+# Excercise 2
+## a
+```{r, fig.height=4, fig.width=8, echo=FALSE}
+data=read.table(file="expensescrime.txt",header=TRUE)
+par(mfrow=c(1,3))
+hist(data$expend, xlab='expenditure',main='Histogram')
+boxplot(data$expend)
+qqnorm(data$expend)
+```
+
+This dataset contains a number outliers.
+
+### Influence Points
+To investigate if these outliers are due to leverage points a scatter plot is made of the response variable expenditure against all individual explanatory variables. Also, the residuals of a linear regression model containing the corresponding explanatory variable is plotted.
+
+```{r, fig.height=20, fig.width=8, echo=FALSE}
+# TODO: lijn toevoegen van linear model, titels toevoegen, labels toevoegen
+par(mfrow=(c(5,2)))
+
+model <- lm(expend~bad, data=data)
+plot(data$bad,data$expend)
+plot(data$bad,residuals(model))
+
+model <- lm(expend~crime, data=data)
+plot(data$crime,data$expend)
+plot(data$crime,residuals(model))
+
+model <- lm(expend~lawyers, data=data)
+plot(data$lawyers,data$expend)
+plot(data$lawyers,residuals(model))
+
+model <- lm(expend~employ, data=data)
+plot(data$employ,data$expend)
+plot(data$employ,residuals(model))
+
+model <- lm(expend~pop, data=data)
+plot(data$pop,data$expend)
+plot(data$pop,residuals(model))
+
+```
+
+The outliers are most apparent in the residuals plots. Most points concentrate around zero, the points with high values appear on the right side of the residuals plot, which means they are likely due to a leverage point. To test if these points are influence points the Cook's distance is calculated: 
+
+$D_i=\frac{1}{(p+1) \hat{\sigma}^2} \sum\limits_{j=1}^n  ({\hat{Y}_{(i),j}-\hat{Y}_j})^2$. 
+
+In words: the Cook's distance quantifes the influence of observation i on the prediction by calculating the sum of squared differences between the predicted values of the model with and without the i-th data point. 
+
+### Collinearity
+
+# Excercise 3
+# Excercise 4
