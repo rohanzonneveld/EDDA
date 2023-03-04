@@ -1,5 +1,5 @@
 ---
-title: "Assignment 1 - Group 27"
+title: "Assignment 2 - Group 27"
 author: "Joost Driessen, Emma van Lipzig, Rohan Zonneveld"
 output: pdf_document
 date: "`r Sys.Date()`"
@@ -11,16 +11,17 @@ highlight: tango
 set.seed(111)
 knitr::opts_chunk$set(echo = TRUE)
 options(digits=3)
-
+library(car)
 ```
 
 
-# Excercise 1
+# Excercise 1. Trees
 
-# Excercise 2
+# Excercise 2. Expenditure on criminal activities
 ## a
 ```{r, fig.height=4, fig.width=8, echo=FALSE}
 data=read.table(file="expensescrime.txt",header=TRUE)
+data=data[,-1]
 par(mfrow=c(1,3))
 hist(data$expend, xlab='expenditure',main='Histogram')
 boxplot(data$expend)
@@ -30,41 +31,129 @@ qqnorm(data$expend)
 This dataset contains a number outliers.
 
 ### Influence Points
-To investigate if these outliers are due to leverage points a scatter plot is made of the response variable expenditure against all individual explanatory variables. Also, the residuals of a linear regression model containing the corresponding explanatory variable is plotted.
+To investigate if these outliers are due to leverage points a scatter plot is made of the response variable expenditure against all individual explanatory variables. This plot also includes the linear regression model depicted as a blue line. Next, the residuals of a linear regression model containing the corresponding explanatory variable is plotted. Third, a QQ-plot of the residuals is plotted. Lastly, the Cook's distance is calculated and plotted with a line at cut-off value 1 depicted in red.
 
-```{r, fig.height=20, fig.width=8, echo=FALSE}
+```{r, fig.height=20, fig.width=16, echo=FALSE}
 # TODO: lijn toevoegen van linear model, titels toevoegen, labels toevoegen
-par(mfrow=(c(5,2)))
+par(mfrow=(c(5,4)))
 
 model <- lm(expend~bad, data=data)
-plot(data$bad,data$expend)
-plot(data$bad,residuals(model))
+plot(data$bad,data$expend, 
+main='Scatter expend,bad',xlab='bad',ylab='expend')
+abline(model, col='blue')
+plot(data$bad,residuals(model), main='Residuals vs. bad',xlab='bad',ylab='expend')
+qqnorm(residuals(model), main='QQ-plot residuals')
+plot(1:length(data$bad), cooks.distance(model), type='b', main="Cook's distances",xlab="index",ylab="Cook's distance")
+abline(h=1, col="red")
 
 model <- lm(expend~crime, data=data)
-plot(data$crime,data$expend)
-plot(data$crime,residuals(model))
+plot(data$crime,data$expend, 
+main='Scatter expend,crime',xlab='crime',ylab='expend')
+abline(model, col='blue')
+plot(data$crime,residuals(model), main='Residuals vs. crime',xlab='crime',ylab='expend')
+qqnorm(residuals(model), main='QQ-plot residuals')
+plot(1:length(data$crime), cooks.distance(model), type='b', main="Cook's distances",xlab="index",ylab="Cook's distance")
+abline(h=1, col="red")
 
 model <- lm(expend~lawyers, data=data)
-plot(data$lawyers,data$expend)
-plot(data$lawyers,residuals(model))
+plot(data$lawyers,data$expend, 
+main='Scatter expend,lawyers',xlab='lawyers',ylab='expend')
+abline(model, col='blue')
+plot(data$lawyers,residuals(model), main='Residuals vs. lawyers',xlab='lawyers',ylab='expend')
+qqnorm(residuals(model), main='QQ-plot residuals')
+plot(1:length(data$lawyers), cooks.distance(model), type='b', main="Cook's distances",xlab="index",ylab="Cook's distance")
+abline(h=1, col="red")
 
 model <- lm(expend~employ, data=data)
-plot(data$employ,data$expend)
-plot(data$employ,residuals(model))
+plot(data$employ,data$expend, 
+main='Scatter expend,employ',xlab='employ',ylab='expend')
+abline(model, col='blue')
+plot(data$employ,residuals(model), main='Residuals vs. employ',xlab='employ',ylab='expend')
+qqnorm(residuals(model), main='QQ-plot residuals')
+plot(1:length(data$employ), cooks.distance(model), type='b', main="Cook's distances",xlab="index",ylab="Cook's distance")
+abline(h=1, col="red")
 
 model <- lm(expend~pop, data=data)
-plot(data$pop,data$expend)
-plot(data$pop,residuals(model))
+plot(data$pop,data$expend, 
+main='Scatter expend,pop',xlab='pop',ylab='expend')
+abline(model, col='blue')
+plot(data$pop,residuals(model), main='Residuals vs. pop',xlab='pop',ylab='expend')
+qqnorm(residuals(model), main='QQ-plot residuals')
+plot(1:length(data$pop), cooks.distance(model), type='b', main="Cook's distances",xlab="index",ylab="Cook's distance")
+abline(h=1, col="red")
 
 ```
 
-The outliers are most apparent in the residuals plots. Most points concentrate around zero, the points with high values appear on the right side of the residuals plot, which means they are likely due to a leverage point. To test if these points are influence points the Cook's distance is calculated: 
+The outliers are apparent in all plots. In the residuals plot most points concentrate around zero, the points with high values appear on the right side of the residuals plot, which means they are likely due to a leverage point. To test if these points are influence points the Cook's distance is calculated: 
 
 $D_i=\frac{1}{(p+1) \hat{\sigma}^2} \sum\limits_{j=1}^n  ({\hat{Y}_{(i),j}-\hat{Y}_j})^2$. 
 
-In words: the Cook's distance quantifes the influence of observation i on the prediction by calculating the sum of squared differences between the predicted values of the model with and without the i-th data point. 
+In words: the Cook's distance quantifies the influence of observation i on the prediction by calculating the sum of squared differences between the predicted values of the model with and without the i-th data point. In the last plot of every row the Cook's distance was plotted for all data points. From these plots we can conclude that all explanatory variables contain influence points except crime.
 
 ### Collinearity
+To investigate the problem of collinearity pairwise plots are made and a correlation table is produced. 
 
-# Excercise 3
-# Excercise 4
+```{r, echo=FALSE}
+pairs(data)
+```
+```{r}
+round(cor(data),2)
+```
+A lot of pairwise scatter plots show a linear pattern, which means these variables are probably collinear. Specifically, all explanatory variables are collinear except crime, which is clear from both the plot (data points scattered) and the correlation table ($R^2<0.80$). 
+
+This approach was only capable of finding pairwise collinearities. To find multi-collinearity the Variance Inflation Factor ($VIF_j$) is calculated according to the following formula: 
+
+$VIF_j=\frac{1}{1-R^2_j}$,
+
+where $R^2_j$ the determination coefficient $R^2$ from the regression of the j-th explanatory $X_j$ (as response) variable on the remaining explanatory variables.
+
+```{r}
+model <- lm(expend~bad+crime+lawyers+employ+pop,data=data)
+vif(model)
+```
+All values except crime are bigger than 5 so there is a collinearity problem, which was already clear from the plots and the table. 
+
+## b
+We apply the step-up method to fit a linear regression model to the data. The first step is to find the variable that yields the maximum increase in $R^2$.
+
+```{r}
+model <- lm(expend~employ,data=data)
+summary(model)[[4]];summary(model)[[8]]
+```
+
+In this case the variable that yields the highest increase in $R^2$ is employ. Employ is significant so we add it to the model and repeat the process with the starting model `lm(expend~employ)`.
+
+```{r}
+model <- lm(expend~employ+lawyers,data=data)
+summary(model)[[4]];summary(model)[[8]]
+```
+ 
+Now the variable which leads to the highest increase in $R^2$ is lawyers. This variable is also significant so we add it to the model. Again the process is repeated, this time with starting model `lm(expend~employ+lawyers)`.
+
+```{r}
+model <- lm(expend~employ+lawyers+bad,data=data)
+summary(model)[[4]];summary(model)[[8]]
+```
+
+```{r}
+model <- lm(expend~employ+lawyers+pop,data=data)
+summary(model)[[4]];summary(model)[[8]]
+```
+
+Both bad and pop lead to an $R^2$ of 0.964, however pop is not significant while bad is. Because the change in $R^2$ is really small and a model with fewer explanatory variables is commonly better looked upon the choice whether or not to add this variables is up for debate. We decided not to add this variable as it is not essential in explaining the expenditure. So, we stop the process and define `lm(expend~employ+lawyers)` as the model. Looking back to **a** it is clear that this model will have a problem with collinearity. Also the change in $R^2$ after the first iteration of the algorithm is negligible. We conclude that this is not a good model because it contains redundant information and it contains variables that do not contribute significantly in added $R^2$.
+
+## c
+To find the 95% prediction interval for the expend of the hypothetical state, we perform the following r code:
+```{r}
+model <- lm(expend~employ+lawyers, data=data)
+newxdata=data.frame(bad=50,crime=5000,lawyers=5000,employ=5000,pop=5000)
+predict(model,newxdata,interval='prediction')
+```
+
+The interval is so big the lower confidence bound is negative, which is hard to interpret as expenditure is always a non-negative number. To improve this prediction interval we could lower the level or gather more data. However lowering the level would lead to a less weighty conclusion and gathering more data is not possible because there are a limited number of states. It is possible to find a better model with another method. If this model would explain more of the variance and have less errors the prediction interval would be smaller. Also, if a model is found with less regressors the degrees of freedom in the t-statistic would go up, that would lead to a smaller t-distribution and by result to a smaller prediction interval (more data points would have the same effect).
+
+## d
+
+
+# Excercise 3. Titanic
+# Excercise 4. Military coups
