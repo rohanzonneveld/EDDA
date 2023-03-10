@@ -35,7 +35,6 @@ This dataset contains a number outliers.
 To investigate if these outliers are due to leverage points a scatter plot is made of the response variable expenditure against all individual explanatory variables. This plot also includes the linear regression model depicted as a blue line. Next, the residuals of a linear regression model containing the corresponding explanatory variable is plotted. Third, a QQ-plot of the residuals is plotted. Lastly, the Cook's distance is calculated and plotted with a line at cut-off value 1 depicted in red.
 
 ```{r, fig.height=20, fig.width=16, echo=FALSE}
-# TODO: lijn toevoegen van linear model, titels toevoegen, labels toevoegen
 par(mfrow=(c(5,4)))
 
 model <- lm(expend~bad, data=data)
@@ -141,7 +140,7 @@ model <- lm(expend~employ+lawyers+pop,data=data)
 summary(model)[[4]];summary(model)[[8]]
 ```
 
-Both bad and pop lead to an $R^2$ of 0.964, however pop is not significant while bad is. Because the change in $R^2$ is really small and a model with fewer explanatory variables is commonly better looked upon the choice whether or not to add this variables is up for debate. We decided not to add this variable as it is not essential in explaining the expenditure. So, we stop the process and define `lm(expend~employ+lawyers)` as the model. Looking back to **a** it is clear that this model will have a problem with collinearity. Also the change in $R^2$ after the first iteration of the algorithm is negligible. We conclude that this is not a good model because it contains redundant information and it contains variables that do not contribute significantly in added $R^2$.
+Both bad and pop lead to an $R^2$ of 0.964, however pop is not significant while bad is. Because the change in $R^2$ is really small and a model with fewer explanatory variables is commonly better looked upon the choice whether or not to add these variables is up for debate. We decided not to add one of these variable as it is not essential in explaining the expenditure. So, we stop the process and define `lm(expend~employ+lawyers)` as the model. Looking back to **a** it is clear that this model will have a problem with collinearity. Also the change in $R^2$ after the first iteration of the algorithm is negligible. We conclude that this is not a good model because it contains redundant information and it contains variables that do not contribute significantly in added $R^2$.
 
 ## c
 To find the 95% prediction interval for the expend of the hypothetical state, we perform the following r code:
@@ -165,15 +164,15 @@ x.test=x[-train,]; y.test=y[-train] # data to test the prediction quality
 lasso.mod=glmnet(x.train,y.train,alpha=1)
 lasso.cv=cv.glmnet(x.train,y.train,alpha=1,type.measure='mse')
 
-par(mfrow=c(1,2))
+par(mfrow=c(1,2)) #TODO legenda
 plot(lasso.mod,label=T,xvar="lambda")  #have a look at the lasso path
 plot(lasso.cv) # the best lambda by cross-validation
 ```
 Contrasting to what one might expect the $\lambda$ is chosen with the lowest mean standard error plus one standard deviation to penalize the $\beta$-weights even more and create an even simpler model. The lasso method with this $\lambda$ yield the following $\beta$-weights:
 
 ```{r, echo=FALSE}
-lambda.min=lasso.cv$lambda.min; lambda.1se=lasso.cv$lambda.1se
-coef(lasso.mod,s=lasso.cv$lambda.1se) #beta’s for the best lambda
+lambda.1se=lasso.cv$lambda.1se
+coef(lasso.mod,s=lambda.1se) #beta’s for the best lambda
 ```
 If the model with these $\beta$-weights is applied to predict the test set of the data the mean standard error equals:
 
@@ -192,3 +191,62 @@ The most important variables are included in both models (lawyers and employ) an
 
 # Excercise 3. Titanic
 # Excercise 4. Military coups
+## a
+```{r, echo=FALSE}
+data = read.table("coups.txt", header =TRUE)
+```
+
+We perform a poisson regression on the full dataset to create a model for the number of military coups. To find out what variables are significantly contributing to this model we compare a model without this variable to the full model. The output of this analysis is given below.
+
+```{r}
+data$pollib= as.factor(data$pollib)
+ model=glm(miltcoup~oligarchy+pollib+parties+pctvote+popn+size+numelec+numregim,family=poisson,data=data)
+drop1(model, test = "Chisq")[5]
+```
+Oligarchy, pollib and parties have a significant effect on the number of military coups. To what extent these variables influence the response variable is given below.
+
+```{r}
+summary(model)$coefficients[,c("Estimate","Pr(>|z|)")]
+```
+
+From this table we can conclude that the number of years the country was ruled by a military oligarchy and the number of legal political parties is associated with an increase in the number of military coups. Also, the political liberalization is inversely related to the number of military coups.
+
+## b
+We use the step-down approach to reduce the number of explanatory variables in the model. We removed variables with the lowest p-value sequentially until all p-values were lower than $\alpha=0.05$. 
+```{r}
+summary(model)$coefficients[, "Pr(>|z|)"]
+```
+We remove numelec.
+```{r}
+model <- glm(miltcoup~oligarchy+pollib+parties+pctvote+popn+size+numregim,family=poisson,data=data)
+summary(model)$coefficients[, "Pr(>|z|)"]
+```
+We remove numregim.
+```{r}
+model <- glm(miltcoup~oligarchy+pollib+parties+pctvote+popn+size,family=poisson,data=data)
+summary(model)$coefficients[, "Pr(>|z|)"]
+```
+We remove size.
+```{r}
+model <- glm(miltcoup~oligarchy+pollib+parties+pctvote+popn,family=poisson,data=data)
+summary(model)$coefficients[, "Pr(>|z|)"]
+```
+We remove popn.
+```{r}
+model <- glm(miltcoup~oligarchy+pollib+parties+pctvote,family=poisson,data=data)
+summary(model)$coefficients[, "Pr(>|z|)"]
+```
+The highest p-value is for pollib1, however this is one level of the entire factor pollib which is significant. We remove the variable with the next biggest p-value, pctvote.
+```{r}
+model <- glm(miltcoup~oligarchy+pollib+parties,family=poisson,data=data)
+summary(model)$coefficients[,c("Estimate","Pr(>|z|)")]
+```
+We stop iterating because there are no more insignificant variables in the model. The remaining variables are the same variables which were significant in the original full model. However this model is better since it contains less variables. The p-value for oligarchy is smaller in comparison to the p-value in the full model, so there is even more certainty about the influence of oligarchy on the number of military coups. 
+
+## c
+To calculate the predicted number of military coups of an hypothetical average country seperated for political liberalization we perform the following r code.
+```{r}
+countries <- data.frame(oligarchy=mean(data$oligarchy),pollib=as.factor(c(0,1,2)),parties=mean(data$parties),pctvote=mean(data$pctvote),popn=mean(data$popn),size=mean(data$size),numelec=mean(data$numelec),numregim=mean(data$numregim))
+predict(model,countries,interval="prediction")
+```
+This result tells us that an average country with no civil rights for political expression is expected to have approximately one successful military coup between independence and 1989. From this prediction a trend is visible with the number of coups decreasing as the political liberties increase. For the country with full political liberties the number of succesful coups is negative. This is hard to interpret but in practice this would come down to no coups.
