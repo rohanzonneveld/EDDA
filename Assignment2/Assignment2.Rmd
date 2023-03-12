@@ -13,6 +13,11 @@ knitr::opts_chunk$set(echo = TRUE)
 options(digits=3)
 library(car)
 library(glmnet)
+library(readr)
+library(ggplot2)
+library(ggthemes)
+library(gridExtra)
+library(glmnet)
 ```
 
 
@@ -189,7 +194,110 @@ mean((y.test-y.pred)^2)
 
 The most important variables are included in both models (lawyers and employ) and the $\beta$-weights do not substantially differ from one another ($\approx0.01$). However, the mean squared error is significantly lower for the lasso model (up to tenfold). In conclusion, the lasso model is better able to find a good model although it does not substantially differ from the step-up model.
 
-# Excercise 3. Titanic
+# Exercise 3 - Titanic
+## a)
+
+```{r loading data titanic, echo=TRUE, message=FALSE, warning=FALSE}
+data_titanic <- read.table('titanic.txt', header=TRUE)
+data_titanic$Sex <- as.factor(data_titanic$Sex)
+data_titanic$PClass <-as.factor(data_titanic$PClass)
+```
+
+The tables below show the percentage of passengers who survived per class and sex, per sex and per class. These tables show that both females, and first class passengers have a higher survival rate than males and second or third class passengers respectively. Both first and second class females have a particularly high survival rate. Because of these differences, Sex and PClass are expected to be important variables in a model that predicts survival. The boxplot shows the distribution of ages among survivors and non-survivors. These distributions do not appear very different, therefore Age is not not expected to be an important variable for a model that predicts survival.
+
+```{r summarizing data titanic, echo=FALSE, warning=FALSE, fig.height=4}
+taba <- xtabs(~Sex + PClass, data=data_titanic)
+tabb <- xtabs(Survived~Sex + PClass, data=data_titanic)
+round(tabb/taba,2) #table of survival rates over sex+class. 
+
+tabc <- xtabs(~Sex, data=data_titanic)
+tabd <- xtabs(Survived~Sex, data=data_titanic)
+tabsex <- round(tabd/tabc,2);tabsex #table of survival rates over sex. 
+
+tabe <- xtabs(~PClass, data=data_titanic)
+tabf <- xtabs(Survived~PClass, data=data_titanic)
+tabclass <- round(tabf/tabe,2);tabclass#table of survival rates over class. 
+
+#boxplot of age distribution of survivors and nonsurvivors
+boxplt_titanic_1 <- ggplot(data_titanic, aes(group = Survived, y = Age)) +         
+  geom_boxplot(color="seagreen", fill="lightgreen") + labs(title = 'Age of survivors and non-survivors of the titanic', x = 'Survival status', y = 'Age')+ theme_light()
+
+boxplt_titanic_1 
+```
+
+The linear regression model below shows that the odds for survival can be predicted approximately as exp{3.76 - 1.29SecondClass - 2.52ThirdClass - 2.63Sexmale - 0.04Age}. This means that the odds of survival are lower for second and third class passengers, male passengers. This is in line with the expectations from the tables. It also means the odds of survival decrease with age, which is an unexpected result. An example of odds predicted by this model would be the survival odds for a for a 30 year old second class male passenger, which are approximately 0.26.
+
+```{r titanic logistic regression 1}
+lg_titanic <- glm(Survived ~ PClass + Sex + Age,
+                    data=data_titanic,family=binomial)
+summary(lg_titanic)$coefficients[,c("Estimate","Pr(>|z|)")]
+exponent <- 3.759662 -1.291962*1 -2.521419*0  -2.631357*1 -0.039177*30
+exp(exponent) #survival odds 30yo 2nd class male
+```
+
+## b)
+
+The models below show that there is a significant interaction effect between Age and Sex, but not between Age and PClass. Previous models showed that Age, PClass and Sex all have significant main effects. Therefore the resulting model includes PClass and an interaction between age and sex.
+
+```{r titanic logistic regression interactions, echo=FALSE}
+lg_class <- glm(Survived ~ Age * PClass,
+                    data=data_titanic,family=binomial)
+summary(lg_class)$coefficients[,c("Estimate","Pr(>|z|)")]
+
+lg_sex <- glm(Survived ~ Age * Sex,
+                    data=data_titanic,family=binomial)
+summary(lg_sex)$coefficients[,c("Estimate","Pr(>|z|)")]
+
+drop1(lg_class, test='Chisq')
+drop1(lg_sex, test='Chisq')
+
+lg_titanic2 <- glm(Survived ~ PClass + Age*Sex, 
+                   data=data_titanic, family=binomial)
+
+summary(lg_titanic2)$coefficients[,c("Estimate","Pr(>|z|)")]
+
+```
+
+The table below shows the estimates of the survival probability for a 55 year passenger of each sex in every class.
+
+```{r titanic lgm predictions, echo=FALSE}
+new_survival_probs <- data.frame(Sex=as.factor(c('female', 'female', 'female', 'male', 'male', 'male')), PClass=as.factor(c('1st', '2nd', '3rd','1st', '2nd', '3rd')), Age=55)
+new_survival_probs$Predictions <- predict(lg_titanic2, new_survival_probs)
+new_survival_probs
+```
+
+## c)
+
+To predict the survival status of passengers, the logistic regression model from b) can be used to predict the estimated chance of survival for passengers with certain characteristics (age, sex and class). These estimates can then be turned into survival status predictions, by taking a survival chance of \<0.5 to be 'not survived' and a survival chance of \>0.5 as 'survived'. To test the quality of these predictions, k-cross validation can be used to test the accuracy of the predictions.
+
+## d)
+
+The contingency tables are based on values from the tables created in a). The number of people who did not survive are calculated with `taba-tabb` and `tabc-tabd`. To test the effect of the factor class on survival, a chi-square test is performed on a contingency table of all the first, second and third class passengers who did and did not survive the titanic. This test is significant, which indicates that class has a significant effect on how the survivors/non-survivors are distributed over the contingency table. the table below shows the difference between the observed and expected values of the class contingency table. In first and second class more people survived than expected if class did not have an effect, and in third class more people died than expected if class did not have an effect. Although this was expected for third class, the results for second class are more surprising because in the logistic regression model, second class was associated with a decrease in survival chance. This difference has likely arisen because in the logistic regression model, the factor class is treatment parametrized with first class as baseline. Compared to first class, second class passengers do have a lower survival chance, which is apparent in the logistic regression model. However, second class passengers still have a higher survival rate than the average survival rate, which is why more second class passengers survived than would be expected if class did not matter to survival. This becomes apparent in the contingency table chisquare test.
+
+To test the effect of the factor sex, a fisher test is used instead, because this is a 2 by 2 contingency table for which an exact p-value can be computed. The test is significant, meaning that sex matters to survival rate. The odds ratio result can be interpeted as for every surviving male there are approximately ten surviving women.
+
+```{r titanic contingency tables, echo=FALSE}
+class_matrix <- matrix(c(193,119,138,129,161,573),
+  byrow=TRUE,ncol=3,nrow=2, dimnames = 
+  list(c("Survived","Died"),c("1st","2nd","3rd")))
+sex_matrix <- matrix(c(308,142,154,709),
+  byrow=TRUE,ncol=2,nrow=2, 
+  dimnames = list(c("Survived","Died"),c("Female","Male")))
+
+z_class <- chisq.test(class_matrix)
+z_class
+tabz_class <-round(z_class$expected,0)
+class_matrix - tabz_class
+
+z_sex <- fisher.test(sex_matrix)
+z_sex
+
+```
+
+## e)
+
+The approach in d) is not wrong. The results a contingency table approach more easily interpretable. However, this approach does not take into account the influence of different variables and their potential interaction effects on survival rate. If only the variables survival and sex or survival and class were available in the data, the contingency table approach would be suitable, but because more data is available, it is better to use this for more accurate picture of what did and did not affect the survival of titanic passengers.
+
 # Excercise 4. Military coups
 ## a
 ```{r, echo=FALSE}
