@@ -22,7 +22,7 @@ library(glmnet)
 
 
 # Excercise 1. Trees
-# Intro
+## Intro
 ```{r exercise 1 intro}
 mydata = read.table('treeVolume.txt')
 
@@ -40,7 +40,7 @@ qqnorm(mydata$volume)
 ```
 The Shapiro test results in a p-value of 0.011, which indicates the data is not normally distributed, however the qqplot looks fine, so we can assume the data comes from a normal distribution.
 
-# A
+## a)
 ``` {r exercise 1A}
 boxplot(volume~type, data = mydata, main = 'Volumes of different tree types')
 model1 = lm(volume~type, data = mydata)
@@ -55,7 +55,7 @@ The p-value from the ANOVA-test is 0.174, which is bigger than 0.05, so we can n
 H0, thus there are equal variances between the volumes of the two tree types. A t-test can 
 also be related to this result. The outcome of this test is that there is no difference between the mean volumes of the two types of trees. The mean volume for a beech is 30.17097 and for an oak it is 35.25.
 
-# B
+## b)
 ```{r exercise 1B}
 model2 = lm(volume~diameter*type, data = mydata)
 
@@ -69,7 +69,7 @@ anova(model3, full_model)
 
 The new ANOVA-tests show that both height and diameter significantly influence volume (p < 0.01). They also demonstrate that there is no interaction effect between diameter and type on volume, but also that there is an interaction effect between height and type on volume (p < 0.01).
 
-# C
+## c)
 ```{r exercise 1C}
 mydata$type = as.factor(mydata$type)
 model4 = lm(volume~height + diameter + type, data = mydata)
@@ -87,7 +87,7 @@ have an impact on the model. It shows that type is not significant, so type is e
 from the new model. The model to predict the average tree volume now only includes diameter
 and volume.
 
-# D
+## d)
 ```{r exercise 1D}
 mydata$newvolume = pi * (mydata$diameter/2)^2 * mydata$height
 model6 = lm(volume ~ newvolume, data = mydata)
@@ -101,8 +101,9 @@ anova(omega1, full_model)
 anova(omega2, full_model)
 ```
 This linear model might not be the best one to explain volume in terms of diameter and height. Since the volume is the product of the surface area and it's height, it would make more sense to construct as follows: volume = pi * (diameter/2)*(diameter/2) * height. In this model the surface area of a circle (tree) is calculated using pi*r*r and it's multiplied by it's height to calculate the volume. The adjusted R-squared of this new model is 0.9743 and the ANOVA between the two submodels and the full model shows that this new model is a better predictor than the old model from C.
+
 # Excercise 2. Expenditure on criminal activities
-## a
+## a)
 ```{r, fig.height=4, fig.width=8, echo=FALSE}
 data=read.table(file="expensescrime.txt",header=TRUE)
 data=data[,-1]
@@ -196,7 +197,7 @@ vif(model)
 ```
 All values except crime are bigger than 5 so there is a collinearity problem, which was already clear from the plots and the table. 
 
-## b
+## b)
 We apply the step-up method to fit a linear regression model to the data. The first step is to find the variable that yields the maximum increase in $R^2$.
 
 ```{r}
@@ -225,7 +226,7 @@ summary(model)[[4]];summary(model)[[8]]
 
 Both bad and pop lead to an $R^2$ of 0.964, however pop is not significant while bad is. Because the change in $R^2$ is really small and a model with fewer explanatory variables is commonly better looked upon the choice whether or not to add these variables is up for debate. We decided not to add one of these variable as it is not essential in explaining the expenditure. So, we stop the process and define `lm(expend~employ+lawyers)` as the model. Looking back to **a** it is clear that this model will have a problem with collinearity. Also the change in $R^2$ after the first iteration of the algorithm is negligible. We conclude that this is not a good model because it contains redundant information and it contains variables that do not contribute significantly in added $R^2$.
 
-## c
+## c)
 To find the 95% prediction interval for the expend of the hypothetical state, we perform the following r code:
 ```{r}
 model <- lm(expend~employ+lawyers, data=data)
@@ -235,7 +236,7 @@ predict(model,newxdata,interval='prediction')
 
 The interval is so big the lower confidence bound is negative, which is hard to interpret as expenditure is always a non-negative number. To improve this prediction interval we could lower the level or gather more data. However lowering the level would lead to a less weighty conclusion and gathering more data is not possible because there are a limited number of states. It is possible to find a better model with another method. If this model would explain more of the variance and have less errors the prediction interval would be smaller. Also, if a model is found with less regressors the degrees of freedom in the t-statistic would go up, that would lead to a smaller t-distribution and by result to a smaller prediction interval (more data points would have the same effect).
 
-## d
+## d)
 We apply the lasso method to find a model. First the data is divided in a train and test set (2:1). Then the model is found by minimizing an equation with the squared error between the train set and the fitted model subject to $\beta$. Also a penalty term is added  ($\sum_{k=0}^p \beta_k$), which increases linearly with a factor of $\lambda$. A plot of the $\beta$-weights against the parameter $\lambda$ is generated. Also, a plot is generated with the mean standard error of the model for every $\lambda$.
 
 ```{r, echo=FALSE}
@@ -272,7 +273,7 @@ mean((y.test-y.pred)^2)
 
 The most important variables are included in both models (lawyers and employ) and the $\beta$-weights do not substantially differ from one another ($\approx0.01$). However, the mean squared error is significantly lower for the lasso model (up to tenfold). In conclusion, the lasso model is better able to find a good model although it does not substantially differ from the step-up model.
 
-# Exercise 3 - Titanic
+# Exercise 3. Titanic
 ## a)
 
 ```{r loading data titanic, echo=TRUE, message=FALSE, warning=FALSE}
@@ -377,7 +378,7 @@ z_sex
 The approach in d) is not wrong. The results a contingency table approach more easily interpretable. However, this approach does not take into account the influence of different variables and their potential interaction effects on survival rate. If only the variables survival and sex or survival and class were available in the data, the contingency table approach would be suitable, but because more data is available, it is better to use this for more accurate picture of what did and did not affect the survival of titanic passengers.
 
 # Excercise 4. Military coups
-## a
+## a)
 ```{r, echo=FALSE}
 data = read.table("coups.txt", header =TRUE)
 ```
@@ -397,7 +398,7 @@ summary(model)$coefficients[,c("Estimate","Pr(>|z|)")]
 
 From this table we can conclude that the number of years the country was ruled by a military oligarchy and the number of legal political parties is associated with an increase in the number of military coups. Also, the political liberalization is inversely related to the number of military coups.
 
-## b
+## b)
 We use the step-down approach to reduce the number of explanatory variables in the model. We removed variables with the lowest p-value sequentially until all p-values were lower than $\alpha=0.05$. 
 ```{r}
 summary(model)$coefficients[, "Pr(>|z|)"]
@@ -429,7 +430,7 @@ summary(model)$coefficients[,c("Estimate","Pr(>|z|)")]
 ```
 We stop iterating because there are no more insignificant variables in the model. The remaining variables are the same variables which were significant in the original full model. However this model is better since it contains less variables. The p-value for oligarchy is smaller in comparison to the p-value in the full model, so there is even more certainty about the influence of oligarchy on the number of military coups. 
 
-## c
+## c)
 To calculate the predicted number of military coups of an hypothetical average country seperated for political liberalization we perform the following r code.
 ```{r}
 countries <- data.frame(oligarchy=mean(data$oligarchy),pollib=as.factor(c(0,1,2)),parties=mean(data$parties),pctvote=mean(data$pctvote),popn=mean(data$popn),size=mean(data$size),numelec=mean(data$numelec),numregim=mean(data$numregim))
