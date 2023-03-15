@@ -22,7 +22,85 @@ library(glmnet)
 
 
 # Excercise 1. Trees
+# Intro
+```{r exercise 1 intro}
+mydata = read.table('treeVolume.txt')
 
+mydata = mydata[-1, ]
+names(mydata)[names(mydata) == "V1"] <- "diameter"
+names(mydata)[names(mydata) == "V2"] <- "height"
+names(mydata)[names(mydata) == "V3"] <- "volume"
+names(mydata)[names(mydata) == "V4"] <- "type"
+mydata$volume <- as.numeric(mydata$volume)
+mydata$height <- as.numeric(mydata$height)
+mydata$diameter <- as.numeric(mydata$diameter)
+
+shapiro.test(mydata$volume)
+qqnorm(mydata$volume)
+```
+The Shapiro test results in a p-value of 0.011, which indicates the data is not normally distributed, however the qqplot looks fine, so we can assume the data comes from a normal distribution.
+
+# A
+``` {r exercise 1A}
+boxplot(volume~type, data = mydata, main = 'Volumes of different tree types')
+model1 = lm(volume~type, data = mydata)
+anova(model1)
+
+beechvolume = mydata$volume[1:31]
+oakvolume = mydata$volume[32:59]
+t.test(beechvolume, oakvolume)
+```
+
+The p-value from the ANOVA-test is 0.174, which is bigger than 0.05, so we can not reject
+H0, thus there are equal variances between the volumes of the two tree types. A t-test can 
+also be related to this result. The outcome of this test is that there is no difference between the mean volumes of the two types of trees. The mean volume for a beech is 30.17097 and for an oak it is 35.25.
+
+# B
+```{r exercise 1B}
+model2 = lm(volume~diameter*type, data = mydata)
+
+model3 = lm(volume~height*type, data = mydata)
+
+full_model = lm(volume~diameter * height * type, data = mydata)
+
+anova(model2, full_model)
+anova(model3, full_model)
+```
+
+The new ANOVA-tests show that both height and diameter significantly influence volume (p < 0.01). They also demonstrate that there is no interaction effect between diameter and type on volume, but also that there is an interaction effect between height and type on volume (p < 0.01).
+
+# C
+```{r exercise 1C}
+mydata$type = as.factor(mydata$type)
+model4 = lm(volume~height + diameter + type, data = mydata)
+drop1(model4, test = 'F')
+model5 = lm(volume~height + diameter, data = mydata)
+summary(model5)
+
+df = data.frame(diameter=mean(mydata$diameter), height = mean(mydata$height))
+predict(model5, df, interval = 'prediction')
+```
+All of the variables height, diameter and type have an influence on the volume of the tree,
+which means it would be wrong to exclude one of those variables, per the previous models.
+Model4 was constructed and drop1 was used to investigate whether all the used variables
+have an impact on the model. It shows that type is not significant, so type is excluded 
+from the new model. The model to predict the average tree volume now only includes diameter
+and volume.
+
+# D
+```{r exercise 1D}
+mydata$newvolume = pi * (mydata$diameter/2)^2 * mydata$height
+model6 = lm(volume ~ newvolume, data = mydata)
+summary(model6)
+
+full_model = lm(volume~height + diameter + newvolume, data =mydata)
+omega1 = lm(volume~height + diameter, data = mydata)
+omega2 = lm(volume~newvolume, data =mydata)
+
+anova(omega1, full_model)
+anova(omega2, full_model)
+```
+This linear model might not be the best one to explain volume in terms of diameter and height. Since the volume is the product of the surface area and it's height, it would make more sense to construct as follows: volume = pi * (diameter/2)*(diameter/2) * height. In this model the surface area of a circle (tree) is calculated using pi*r*r and it's multiplied by it's height to calculate the volume. The adjusted R-squared of this new model is 0.9743 and the ANOVA between the two submodels and the full model shows that this new model is a better predictor than the old model from C.
 # Excercise 2. Expenditure on criminal activities
 ## a
 ```{r, fig.height=4, fig.width=8, echo=FALSE}
