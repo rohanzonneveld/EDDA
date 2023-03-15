@@ -23,7 +23,7 @@ library(glmnet)
 
 # Excercise 1. Trees
 ## Intro
-```{r exercise 1 intro}
+```{r exercise 1 intro, echo=FALSE}
 mydata = read.table('treeVolume.txt')
 
 mydata = mydata[-1, ]
@@ -35,14 +35,19 @@ mydata$volume <- as.numeric(mydata$volume)
 mydata$height <- as.numeric(mydata$height)
 mydata$diameter <- as.numeric(mydata$diameter)
 
-shapiro.test(mydata$volume)
+par(mfrow=c(1,2))
+hist(mydata$volume, main="Histogram of Tree volume", xlab="Volume")
 qqnorm(mydata$volume)
+
+shapiro.test(mydata$volume)
 ```
-The Shapiro test results in a p-value of 0.011, which indicates the data is not normally distributed, however the qqplot looks fine, so we can assume the data comes from a normal distribution.
+The histogram is slightly skewed to the right and the QQ-plot looks normal. So, the plots give no reason to suspect the data is not drawn from a normal distribution. However the Shapiro-Wilk test does reject normality ($p<0.05$). However, since it is explicitly stated in the question that we should use anova we decided to use parametric tests throughout **Exercise 1**.
 
 ## a)
-``` {r exercise 1A}
+``` {r exercise 1A, echo=FALSE}
 boxplot(volume~type, data = mydata, main = 'Volumes of different tree types')
+```
+```{r}
 model1 = lm(volume~type, data = mydata)
 anova(model1)
 
@@ -100,7 +105,7 @@ omega2 = lm(volume~newvolume, data =mydata)
 anova(omega1, full_model)
 anova(omega2, full_model)
 ```
-This linear model might not be the best one to explain volume in terms of diameter and height. Since the volume is the product of the surface area and it's height, it would make more sense to construct as follows: volume = pi * (diameter/2)*(diameter/2) * height. In this model the surface area of a circle (tree) is calculated using pi*r*r and it's multiplied by it's height to calculate the volume. The adjusted R-squared of this new model is 0.9743 and the ANOVA between the two submodels and the full model shows that this new model is a better predictor than the old model from C.
+This linear model might not be the best one to explain volume in terms of diameter and height. Since the volume is the product of the surface area and it's height, it would make more sense to construct as follows: $volume = \pi * (diameter/2)^2 * height$. In this model the surface area of a circle (tree) is calculated using $\pi r^2$ and it's multiplied by it's height to calculate the volume. The adjusted R-squared of this new model is 0.9743 and the ANOVA between the two submodels and the full model shows that this new model is a better predictor than the old model from *c*.
 
 # Excercise 2. Expenditure on criminal activities
 ## a)
